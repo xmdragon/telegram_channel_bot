@@ -1,7 +1,7 @@
 """
 分隔符模式管理模块
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 from typing import List, Dict
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from pathlib import Path
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def handle_api_error(error: Exception, operation: str) -> HTTPException:
 
 router = APIRouter(tags=["training-separator-patterns"])
 @router.get(ROUTES.training.separator_patterns)
-async def get_separator_patterns():
+async def get_separator_patterns(user: dict = Depends(require_auth)):
     """获取分隔符模式列表"""
     try:
         patterns = load_separator_patterns()
@@ -77,7 +78,7 @@ async def get_separator_patterns():
         raise handle_api_error(e, "获取分隔符模式")
 
 @router.post(ROUTES.training.separator_patterns)
-async def add_separator_pattern(pattern_data: SeparatorPattern):
+async def add_separator_pattern(pattern_data: SeparatorPattern, user: dict = Depends(require_auth)):
     """添加分隔符模式"""
     try:
         patterns = load_separator_patterns()
@@ -103,7 +104,7 @@ async def add_separator_pattern(pattern_data: SeparatorPattern):
         raise handle_api_error(e, "添加分隔符模式")
 
 @router.put(ROUTES.training.separator_patterns)
-async def update_all_separator_patterns(patterns_data: dict):
+async def update_all_separator_patterns(patterns_data: dict, user: dict = Depends(require_auth)):
     """批量更新所有分隔符模式（完全替换）"""
     try:
         patterns_list = patterns_data.get('patterns', [])

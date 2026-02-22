@@ -1,11 +1,12 @@
 """
 分隔符测试API
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from app.core.route_config import ROUTES
 from app.services.filters.separator_filter import SeparatorFilter
+from app.api.deps import require_auth
 import re
 import logging
 
@@ -28,7 +29,7 @@ class SeparatorTestResponse(BaseModel):
     error: Optional[str] = None
 
 @router.post(ROUTES.training.test_separator)
-async def test_separator_filter(request: SeparatorTestRequest) -> SeparatorTestResponse:
+async def test_separator_filter(request: SeparatorTestRequest, user: dict = Depends(require_auth)) -> SeparatorTestResponse:
     """测试分隔符过滤效果"""
     try:
         if request.pattern:

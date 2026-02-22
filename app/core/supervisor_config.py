@@ -3,9 +3,21 @@ Supervisor服务统一配置管理
 零硬编码，所有配置从环境变量或配置文件读取
 """
 import os
+import logging
 from pathlib import Path
 from typing import Dict, Any
 from app.core.path_config import PathConfig
+
+_logger = logging.getLogger(__name__)
+
+def _get_supervisor_pass() -> str:
+    """Get supervisor password from env or generate random one"""
+    password = os.getenv('SUPERVISOR_PASS')
+    if not password:
+        import secrets
+        password = secrets.token_urlsafe(32)
+        _logger.warning("SUPERVISOR_PASS not set, using random password")
+    return password
 
 class SupervisorConfig:
     """Supervisor统一配置管理"""
@@ -14,7 +26,7 @@ class SupervisorConfig:
     SUPERVISOR_HOST = os.getenv('SUPERVISOR_HOST', '127.0.0.1')
     SUPERVISOR_PORT = int(os.getenv('SUPERVISOR_PORT', 9001))
     SUPERVISOR_USER = os.getenv('SUPERVISOR_USER', 'supervisor')
-    SUPERVISOR_PASS = os.getenv('SUPERVISOR_PASS', 'tg_supervisor_2025')
+    SUPERVISOR_PASS = _get_supervisor_pass()
 
     # XML-RPC连接URL
     @classmethod

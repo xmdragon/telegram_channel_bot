@@ -10,12 +10,13 @@
 class EventDelegate {
     constructor(vm) {
         this.vm = vm;
+        this._boundHandleClick = this.handleClick.bind(this);
         this.initEventListeners();
     }
-    
+
     initEventListeners() {
         // 在捕获阶段统一处理所有点击事件
-        document.addEventListener('click', this.handleClick.bind(this), true);
+        document.addEventListener('click', this._boundHandleClick, true);
     }
     
     handleClick(e) {
@@ -72,7 +73,7 @@ class EventDelegate {
      * 销毁事件监听器
      */
     destroy() {
-        document.removeEventListener('click', this.handleClick.bind(this), true);
+        document.removeEventListener('click', this._boundHandleClick, true);
     }
 }
 

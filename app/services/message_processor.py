@@ -194,11 +194,16 @@ class MessageProcessor:
         try:
             from app.core.message_status import MessageStatus
 
-            # 获取各状态的数量 - 直接从Redis索引统计
+            # 获取各状态的数量 - 使用ZCARD替代ZRANGE全量获取
+            pipeline = redis_manager.client.pipeline()
+            statuses = list(MessageStatus)
+            for status in statuses:
+                pipeline.zcard(f"index:msg:{status.value}")
+            counts = pipeline.execute()
+
             stats = {}
-            for status in MessageStatus:
-                count = len(redis_manager.client.zrange(f"index:msg:{status.value}", 0, -1))
-                stats[status.value] = count
+            for status, count in zip(statuses, counts):
+                stats[status.value] = count or 0
 
             return stats
 

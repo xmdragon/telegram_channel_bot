@@ -3,7 +3,6 @@
 处理尾部过滤、阈值管理、训练数据等功能
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from app.utils.timezone import get_current_time
@@ -12,39 +11,17 @@ import json
 import os
 
 from app.storage.redis_manager import redis_manager
-from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.filters.ad_detector import AdDetector
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-security = HTTPBearer(auto_error=False)
 
 # 依赖注入辅助函数
 def get_message_processor() -> MessageProcessor:
     return MessageProcessor()
-
-# 认证中间件
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """获取当前用户"""
-    if not credentials:
-        return None
-    
-    try:
-        auth_service = get_auth_service()
-        return await auth_service.get_current_user(credentials.credentials)
-    except Exception as e:
-        logger.error(f"获取当前用户失败: {e}")
-        return None
-
-async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
-    """要求用户认证"""
-    if not user:
-        raise HTTPException(status_code=401, detail="未授权访问")
-    return user
 
 
 @router.post(ROUTES.messages.filter_content)
@@ -174,7 +151,7 @@ async def train_message_tail(
             with open(tail_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 samples = data.get('samples', [])
-        except:
+        except Exception:
             samples = []
         
         # 添加新的训练样本 - 只保留核心字段

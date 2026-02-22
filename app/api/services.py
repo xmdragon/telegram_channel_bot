@@ -2,18 +2,19 @@
 服务管理API
 提供服务状态查看、启停、重启、日志查看等功能
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Dict, Any, List, Optional
 import logging
 from app.services.supervisor_manager import supervisor_manager
 from app.core.supervisor_config import SupervisorConfig
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/services", tags=["services"])
 
 @router.get(ROUTES.services.status)
-async def get_services_status() -> Dict[str, Any]:
+async def get_services_status(user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     获取所有服务状态
 
@@ -35,7 +36,7 @@ async def get_services_status() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(ROUTES.services.status_by_service)
-async def get_service_status(service_name: str) -> Dict[str, Any]:
+async def get_service_status(service_name: str, user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     获取单个服务状态
 
@@ -61,7 +62,7 @@ async def get_service_status(service_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.services.start)
-async def start_service(service_name: str) -> Dict[str, Any]:
+async def start_service(service_name: str, user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     启动服务
 
@@ -88,7 +89,7 @@ async def start_service(service_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.services.stop)
-async def stop_service(service_name: str) -> Dict[str, Any]:
+async def stop_service(service_name: str, user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     停止服务
 
@@ -115,7 +116,7 @@ async def stop_service(service_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.services.restart)
-async def restart_service(service_name: str) -> Dict[str, Any]:
+async def restart_service(service_name: str, user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     重启服务
 
@@ -148,7 +149,8 @@ async def restart_service(service_name: str) -> Dict[str, Any]:
 async def get_service_logs(
     service_name: str,
     log_type: str = Query("stdout", description="日志类型: stdout 或 stderr"),
-    lines: int = Query(100, description="返回的日志行数", ge=1, le=1000)
+    lines: int = Query(100, description="返回的日志行数", ge=1, le=1000),
+    user: dict = Depends(require_auth)
 ) -> Dict[str, Any]:
     """
     获取服务日志
@@ -194,7 +196,7 @@ async def get_service_logs(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.services.reload_config)
-async def reload_config() -> Dict[str, Any]:
+async def reload_config(user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     重新加载Supervisor配置
 
@@ -212,7 +214,7 @@ async def reload_config() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(ROUTES.services.info)
-async def get_supervisor_info() -> Dict[str, Any]:
+async def get_supervisor_info(user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """
     获取Supervisor连接信息
 

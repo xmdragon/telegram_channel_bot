@@ -111,13 +111,30 @@ class MessageSchedulerService:
         if await self.initialize():
             self.is_running = True
             logger.info("⏰ 消息调度服务运行中...")
-            
+
             # 保持服务运行
             try:
                 while self.is_running:
+                    # 检测子任务是否崩溃，自动重启
+                    if self.scheduler_task and self.scheduler_task.done():
+                        exc = self.scheduler_task.exception() if not self.scheduler_task.cancelled() else None
+                        if exc:
+                            logger.error(f"调度器任务崩溃: {exc}，正在重启...")
+                            scheduler = MessageScheduler()
+                            self.scheduler_task = asyncio.create_task(scheduler.start())
+                            self.message_scheduler = scheduler
+
+                    if self.auto_forwarder_task and self.auto_forwarder_task.done():
+                        exc = self.auto_forwarder_task.exception() if not self.auto_forwarder_task.cancelled() else None
+                        if exc:
+                            logger.error(f"自动转发任务崩溃: {exc}，正在重启...")
+                            from app.services.auto_forwarder import auto_forwarder
+                            self.auto_forwarder_task = asyncio.create_task(
+                                auto_forwarder.run_continuous()
+                            )
+
                     await asyncio.sleep(1)
-            except KeyboardInterrupt:
-                logger.info("收到停止信号，正在关闭...")
+            finally:
                 await self.stop()
     
     async def stop(self):
@@ -159,12 +176,9 @@ class MessageSchedulerService:
 scheduler_service = None
 
 def signal_handler(signum, frame):
-    """信号处理器 - 优雅关闭服务"""
-    logger.info(f"收到信号 {signum}，正在关闭服务...")
+    """信号处理器 - 优雅关闭服务（不调用logger，避免死锁）"""
     if scheduler_service:
-        # 设置停止标志，让主循环自然退出
         scheduler_service.is_running = False
-        logger.info("已设置停止标志，等待服务自然关闭...")
 
 async def main():
     """主函数"""
@@ -180,10 +194,10 @@ async def main():
     
     # 注册信号处理器
     def cleanup_handler(signum, frame):
-        logger.info(f"接收到信号 {signum}，清理PID文件...")
+        """信号处理器 - 不调用logger，避免死锁"""
         try:
             os.remove('/tmp/scheduler.pid')
-        except:
+        except OSError:
             pass
         signal_handler(signum, frame)
 
@@ -198,7 +212,7 @@ async def main():
         try:
             os.remove('/tmp/scheduler.pid')
             logger.debug("PID文件已清理")
-        except:
+        except OSError:
             pass
 
 if __name__ == "__main__":

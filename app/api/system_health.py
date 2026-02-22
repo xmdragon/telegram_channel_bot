@@ -2,7 +2,7 @@
 系统健康检查API
 负责系统状态监控、健康检查和性能统计
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 import logging
 import psutil
@@ -15,6 +15,7 @@ from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.core.route_config import ROUTES
 from app.api.websocket import websocket_manager
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-health"])
@@ -25,39 +26,31 @@ START_TIME = datetime.now()
 
 
 @router.get(ROUTES.system.status_detailed)
-async def get_detailed_status() -> Dict[str, Any]:
+async def get_detailed_status(user: dict = Depends(require_auth)) -> Dict[str, Any]:
     """获取详细系统状态"""
     try:
-        # 获取系统信息
-        cpu_percent = psutil.cpu_percent(interval=1)
+        # 获取系统信息 - 在线程中运行避免阻塞事件循环
+        cpu_percent = await asyncio.to_thread(psutil.cpu_percent, interval=1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
-        
+
         # 计算运行时间
         uptime = datetime.now() - START_TIME
         uptime_str = f"{uptime.days}天 {uptime.seconds // 3600}小时 {(uptime.seconds % 3600) // 60}分钟"
-        
+
         # 从 Redis 和 JSON 获取统计数据
-        redis_store = redis_manager
         channel_store = get_json_channel_store()
-        
-        # 消息统计
-        all_message_keys = redis_manager.client.keys("message:*")
-        total_messages = len(all_message_keys)
-        
-        # 今日消息数（简化版，从最新消息中算出）
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # 消息统计 - 使用ZCARD替代keys()
+        pipeline = redis_manager.client.pipeline()
+        pipeline.zcard("index:msg:pending")
+        pipeline.zcard("index:msg:approved")
+        pipeline.zcard("index:msg:rejected")
+        counts = pipeline.execute()
+        total_messages = (counts[0] or 0) + (counts[1] or 0) + (counts[2] or 0)
+
+        # 今日消息数简化为0（精确统计需要全量扫描，性能太差）
         today_messages = 0
-        for key in all_message_keys[:500]:  # 限制检查数量
-            try:
-                msg_data = redis_manager.client.hgetall(key)
-                created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
-                if created_at_str:
-                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                    if created_at >= today_start:
-                        today_messages += 1
-            except:
-                continue
         
         # 频道数量
         all_channels = channel_store.get_all_channels()
@@ -111,7 +104,7 @@ async def get_detailed_status() -> Dict[str, Any]:
                 },
                 "services": {
                     "web_server": "running",
-                    "telegram_bot": "running" if telegram_connected else "stopped",
+                    "telegram_bot": "running" if (current_status and current_status.telegram_connected) else "stopped",
                     "storage": "running",
                     "message_processor": "running",
                     "system_monitor": "running" if current_status else "stopped"

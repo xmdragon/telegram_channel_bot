@@ -2,7 +2,7 @@
 系统维护API
 负责系统重置、重启和数据清理等维护操作
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 import logging
 import psutil
@@ -16,12 +16,13 @@ from app.storage.json_store import get_json_channel_store
 from app.services.system_monitor import system_monitor
 from app.core.route_config import ROUTES
 from app.api.websocket import websocket_manager
+from app.api.deps import require_super_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-maintenance"])
 
 @router.post(ROUTES.system.reset)
-async def reset_system() -> Dict[str, Any]:
+async def reset_system(user: dict = Depends(require_super_admin)) -> Dict[str, Any]:
     """重置消息系统 - 清空所有消息数据和媒体文件，通过WebSocket实时推送进度"""
     operation = "system_reset"
     message_keys = []
@@ -67,7 +68,7 @@ async def reset_system() -> Dict[str, Any]:
                 
                 all_keys = []
                 for pattern in patterns_to_delete:
-                    keys = redis_manager.client.keys(pattern)
+                    keys = list(redis_manager.client.scan_iter(match=pattern, count=100))
                     if keys:
                         all_keys.extend(keys)
                         logger.info(f"找到 {len(keys)} 个匹配 {pattern} 的键")
@@ -109,7 +110,7 @@ async def reset_system() -> Dict[str, Any]:
             
             # 删除其他消息相关的键
             try:
-                pending_keys = redis_manager.client.keys("pending_messages")
+                pending_keys = list(redis_manager.client.scan_iter(match="pending_messages", count=100))
                 if pending_keys:
                     deleted_count = redis_manager.client.delete(*pending_keys)
                     cleanup_status["redis_pending"] = {
@@ -134,7 +135,7 @@ async def reset_system() -> Dict[str, Any]:
             
             # 清空WebSocket连接信息
             try:
-                ws_keys = redis_manager.client.keys("websocket:*")
+                ws_keys = list(redis_manager.client.scan_iter(match="websocket:*", count=100))
                 if ws_keys:
                     deleted_count = redis_manager.client.delete(*ws_keys)
                     cleanup_status["redis_websocket"] = {
@@ -162,13 +163,13 @@ async def reset_system() -> Dict[str, Any]:
             max_retries = 3
             for retry in range(max_retries):
                 try:
-                    checkpoint_keys = redis_manager.client.keys("channel:checkpoint*")
+                    checkpoint_keys = list(redis_manager.client.scan_iter(match="channel:checkpoint*", count=100))
                     if checkpoint_keys:
                         logger.info(f"🔄 第 {retry + 1} 次尝试清理 {len(checkpoint_keys)} 个checkpoint键")
                         deleted_count = redis_manager.client.delete(*checkpoint_keys)
 
                         # 验证清理结果
-                        remaining_keys = redis_manager.client.keys("channel:checkpoint*")
+                        remaining_keys = list(redis_manager.client.scan_iter(match="channel:checkpoint*", count=100))
                         if remaining_keys:
                             logger.warning(f"⚠️ 第 {retry + 1} 次清理后仍有 {len(remaining_keys)} 个checkpoint键未清理")
                             if retry < max_retries - 1:

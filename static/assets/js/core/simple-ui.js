@@ -349,20 +349,30 @@ class SimpleMessageBox {
             const confirmText = options.confirmButtonText || '确定';
             const type = options.type || 'primary';
             
-            dialog.innerHTML = `
-                <div>
-                    <h3>${titleText}</h3>
-                    <p>${message}</p>
-                </div>
-                <div class="simple-dialog-actions">
-                    <button class="simple-btn simple-btn-default cancel-btn">
-                        ${cancelText}
-                    </button>
-                    <button class="simple-btn simple-btn-${type} confirm-btn">
-                        ${confirmText}
-                    </button>
-                </div>
-            `;
+            // Build dialog content safely using DOM APIs to prevent XSS
+            const contentDiv = document.createElement('div');
+            const h3 = document.createElement('h3');
+            h3.textContent = titleText;
+            const p = document.createElement('p');
+            p.textContent = message;
+            contentDiv.appendChild(h3);
+            contentDiv.appendChild(p);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'simple-dialog-actions';
+
+            const cancelBtnEl = document.createElement('button');
+            cancelBtnEl.className = 'simple-btn simple-btn-default cancel-btn';
+            cancelBtnEl.textContent = cancelText;
+
+            const confirmBtnEl = document.createElement('button');
+            confirmBtnEl.className = `simple-btn simple-btn-${type} confirm-btn`;
+            confirmBtnEl.textContent = confirmText;
+
+            actionsDiv.appendChild(cancelBtnEl);
+            actionsDiv.appendChild(confirmBtnEl);
+            dialog.appendChild(contentDiv);
+            dialog.appendChild(actionsDiv);
             
             // 事件处理
             const cancelBtn = dialog.querySelector('.cancel-btn');

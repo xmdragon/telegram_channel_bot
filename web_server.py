@@ -86,7 +86,7 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"JSON存储层初始化失败，重试 ({attempt + 1}/{json_retries})")
             
             if attempt < json_retries - 1:
-                time.sleep(1.0)  # 短暂等待后重试
+                await asyncio.sleep(1.0)  # 短暂等待后重试
         
         if not json_success:
             await health_monitor.set_unhealthy("JSON存储层初始化失败")
@@ -193,9 +193,8 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"❌ 后台初始化失败: {e}")
         
-        # 启动后台任务，不等待完成
-        import asyncio
-        asyncio.create_task(background_init())
+        # 启动后台任务，不等待完成（保存引用防止GC）
+        app.state.background_init_task = asyncio.create_task(background_init())
         
         # 标记已初始化
         app.state.initialized = True
@@ -213,10 +212,18 @@ async def lifespan(app: FastAPI):
     finally:
         # 关闭时清理
         logger.info("🛑 正在关闭Web服务器...")
-        
+
         # WebSocket Redis订阅监听器会在连接关闭时自动停止
         logger.info("✅ WebSocket Redis订阅监听器将自动清理")
-        
+
+        # 关闭Redis连接
+        try:
+            from app.storage.redis_manager import redis_manager
+            redis_manager.client.close()
+            logger.info("✅ Redis连接已关闭")
+        except Exception as e:
+            logger.warning(f"关闭Redis连接失败: {e}")
+
         await health_monitor.stop()
         logger.info("✅ Web服务器已关闭")
 
@@ -228,12 +235,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 配置CORS
+# 配置CORS - 限制允许的来源
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8080,http://localhost:8008").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in _cors_origins],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 

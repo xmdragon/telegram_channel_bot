@@ -7,44 +7,18 @@ Created: 2025-09-29
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Body
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from app.services.auth_service import get_auth_service
 from app.services.filters.text_filter import get_text_filter
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# 认证配置
-security = HTTPBearer()
-
-# 认证依赖
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """获取当前用户"""
-    if not credentials:
-        return None
-
-    try:
-        auth_service = get_auth_service()
-        user = await auth_service.get_current_user(credentials.credentials)
-        return user
-    except Exception as e:
-        logger.error(f"获取当前用户失败: {e}")
-        return None
-
-async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
-    """要求用户认证"""
-    if not user:
-        raise HTTPException(status_code=401, detail="未授权访问")
-    return user
 
 
 @router.get(ROUTES.training.text_filters)

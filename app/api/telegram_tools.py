@@ -2,7 +2,6 @@
 Telegram工具API端点
 """
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 from pydantic import BaseModel
 import logging
@@ -10,8 +9,8 @@ import time
 import hashlib
 
 from app.core.route_config import ROUTES
-from app.services.auth_service import get_auth_service
 from app.telegram.dual_session_manager import TelegramDualSessionManager
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -19,34 +18,12 @@ router = APIRouter(
     prefix="/telegram",
     tags=["telegram-tools"]
 )
-security = HTTPBearer(auto_error=False)
 
 # 消息缓存，避免重复请求Telegram API
 # 缓存结构: {url_hash: (message_data, timestamp)}
 message_cache = {}
 CACHE_TTL = 30  # 缓存30秒
 TELEGRAM_TIMEOUT = 30  # Telegram API超时30秒
-
-# 认证中间件
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """获取当前用户"""
-    if not credentials:
-        return None
-
-    try:
-        auth_service = get_auth_service()
-        return await auth_service.get_current_user(credentials.credentials)
-    except Exception as e:
-        logger.error(f"获取当前用户失败: {e}")
-        return None
-
-async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
-    """要求用户认证"""
-    if not user:
-        raise HTTPException(status_code=401, detail="未授权访问")
-    return user
 
 # 请求模型
 class MessageAnalyzeRequest(BaseModel):

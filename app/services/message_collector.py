@@ -93,6 +93,12 @@ class CollectorConfigManager:
         self.auto_reject_ads: bool = True  # 是否自动拒绝广告
         self.max_media_size_mb: int = 200  # 媒体文件大小限制(MB)
         self._system_mtime = 0
+        # 过滤器配置默认值（避免load_config前调用get_filter_config崩溃）
+        self.filter_enabled: bool = False
+        self.tail_filter: bool = True
+        self.separator_filter: bool = True
+        self.markdown_filter: bool = True
+        self.ad_detector: bool = False
     
     async def load_config(self):
         """检测系统配置文件变化并动态加载"""
@@ -287,7 +293,8 @@ class TelegramMessageCollector:
         # 业务组件
         self.checkpoint_manager = CheckpointManager()
         self.content_processor = ContentProcessor()
-        
+        self._media_handler = None
+
         # 初始化标志
         self._initialized = False
 
@@ -296,7 +303,15 @@ class TelegramMessageCollector:
         
         # 信号控制标志
         self.running = True
-    
+
+    @property
+    def media_handler(self):
+        """延迟初始化MediaHandler单例"""
+        if self._media_handler is None:
+            from app.services.media_handler import MediaHandler
+            self._media_handler = MediaHandler()
+        return self._media_handler
+
     async def initialize(self):
         """初始化采集器"""
         logger.info("初始化TelegramMessageCollector")
@@ -413,7 +428,7 @@ class TelegramMessageCollector:
         # 5. 确保一轮完成后清除进度（防止遗留）
         try:
             redis_manager.client.delete("collector:current_channel_index")
-        except:
+        except Exception:
             pass
 
         # 删除单轮采集完成的日志
@@ -671,6 +686,7 @@ class TelegramMessageCollector:
         
         # 2. 循环处理每个消息组
         processed_count = 0
+        media_count = 0
         
         for message_group in message_groups:
             # 检查采集是否仍然启用（消息级别的最细粒度检查）
@@ -748,7 +764,10 @@ class TelegramMessageCollector:
                 
                 if success:
                     processed_count += 1
-                    
+                    # 统计媒体消息
+                    if collected_message.media_info or collected_message.media_group_display:
+                        media_count += 1
+
                     # 5. 立即更新checkpoint
                     checkpoint_id = collected_message.message_id
                     
@@ -776,17 +795,6 @@ class TelegramMessageCollector:
                 logger.error(f"处理消息组 {message_group} 时发生错误: {e}")
                 continue
         
-        # 计算媒体消息数量
-        media_count = 0
-        for message_group in message_groups:
-            try:
-                messages = await self.telethon_client.get_messages(entity, ids=message_group)
-                for msg in messages:
-                    if msg and msg.media:
-                        media_count += 1
-            except:
-                continue
-
         # 只记录有处理消息的频道
         if processed_count > 0:
             logger.info(f"频道{channel_name}/{channel_id}采集成功（包含{media_count}个媒体）")
@@ -821,9 +829,7 @@ class TelegramMessageCollector:
             # 下载媒体（如果有）
             media_info = None
             if message.media:
-                from app.services.media_handler import MediaHandler
-                media_handler = MediaHandler()
-                media_info = await media_handler.download_media_with_retry(
+                media_info = await self.media_handler.download_media_with_retry(
                     self.telethon_client, message, message.id
                 )
             
@@ -910,12 +916,10 @@ class TelegramMessageCollector:
 
             # 批量下载所有媒体
             media_files = []
-            from app.services.media_handler import MediaHandler
-            media_handler = MediaHandler()
 
             for msg in group_messages:
                 if msg.media:
-                    media_info = await media_handler.download_media_with_retry(
+                    media_info = await self.media_handler.download_media_with_retry(
                         self.telethon_client, msg, msg.id
                     )
                     if media_info:

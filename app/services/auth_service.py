@@ -5,6 +5,7 @@
 import hashlib
 import logging
 import secrets
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
@@ -25,111 +26,59 @@ class AuthService:
         # 暴力破解防护配置
         self.max_login_attempts = 5      # 最大尝试次数
         self.lockout_duration = 15 * 60  # 锁定时间（15分钟）
-        self.attempt_window = 5 * 60     # 尝试窗口（5分钟）
-        # 内存中的失败尝试跟踪（简化实现）
-        self.failed_attempts = {}        # {identifier: {"count": int, "first_attempt": datetime, "locked_until": datetime}}
-        from datetime import datetime
-        self._datetime = datetime
     
     def hash_password(self, password: str) -> str:
-        """密码哈希"""
-        return hashlib.sha256(password.encode()).hexdigest()
-    
+        """密码哈希 - 使用bcrypt"""
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
     def verify_password(self, password: str, hashed_password: str) -> bool:
-        """验证密码"""
-        return self.hash_password(password) == hashed_password
+        """验证密码 - 支持bcrypt和legacy SHA-256"""
+        if len(hashed_password) == 64:
+            # Legacy SHA-256 hex digest fallback
+            return hashlib.sha256(password.encode()).hexdigest() == hashed_password
+        try:
+            return bcrypt.checkpw(password.encode(), hashed_password.encode())
+        except (ValueError, TypeError):
+            return False
     
     def generate_token(self) -> str:
         """生成会话token"""
         return secrets.token_urlsafe(32)
     
-    def _get_login_attempt_key(self, identifier: str) -> str:
-        """获取登录尝试的Redis键"""
-        return f"login_attempts:{identifier}"
-    
-    def _get_lockout_key(self, identifier: str) -> str:
-        """获取账户锁定的Redis键"""
-        return f"account_lockout:{identifier}"
-    
     async def _is_account_locked(self, identifier: str) -> bool:
-        """检查账户是否被锁定"""
-        now = self._datetime.now()
-        if identifier in self.failed_attempts:
-            attempt_info = self.failed_attempts[identifier]
-            if 'locked_until' in attempt_info and attempt_info['locked_until'] > now:
-                return True
-            # 清除过期的锁定
-            if 'locked_until' in attempt_info and attempt_info['locked_until'] <= now:
-                del self.failed_attempts[identifier]
-        return False
-    
+        """检查账户是否被锁定 - Redis based"""
+        attempts = int(redis_manager.client.get(f"login_attempts:{identifier}") or 0)
+        return attempts >= self.max_login_attempts
+
     async def _record_login_attempt(self, identifier: str, success: bool = False) -> None:
-        """记录登录尝试"""
-        logger.info(f"🔍 _record_login_attempt 被调用: identifier={identifier}, success={success}")
-        now = self._datetime.now()
-        
+        """记录登录尝试 - Redis based"""
+        key = f"login_attempts:{identifier}"
         if success:
-            # 登录成功，清除尝试记录
-            if identifier in self.failed_attempts:
-                del self.failed_attempts[identifier]
+            redis_manager.client.delete(key)
             logger.info(f"清除登录失败记录: {identifier}")
             return
-        
-        # 登录失败处理
-        if identifier not in self.failed_attempts:
-            # 首次失败
-            self.failed_attempts[identifier] = {
-                "count": 1,
-                "first_attempt": now
-            }
-            logger.warning(f"记录登录失败尝试: {identifier} (1/{self.max_login_attempts})")
-        else:
-            attempt_info = self.failed_attempts[identifier]
-            
-            # 检查是否在时间窗口内
-            if (now - attempt_info["first_attempt"]).total_seconds() > self.attempt_window:
-                # 超出时间窗口，重置计数
-                attempt_info["count"] = 1
-                attempt_info["first_attempt"] = now
-                logger.warning(f"重置登录失败计数: {identifier} (1/{self.max_login_attempts})")
-            else:
-                # 在时间窗口内，增加计数
-                attempt_info["count"] += 1
-                logger.warning(f"记录登录失败尝试: {identifier} ({attempt_info['count']}/{self.max_login_attempts})")
-                
-                # 检查是否达到最大尝试次数
-                if attempt_info["count"] >= self.max_login_attempts:
-                    # 锁定账户
-                    locked_until = now + timedelta(seconds=self.lockout_duration)
-                    attempt_info["locked_until"] = locked_until
-                    logger.warning(f"🔒 账户被锁定: {identifier} (连续{attempt_info['count']}次失败尝试，锁定{self.lockout_duration//60}分钟)")
-    
+
+        current = redis_manager.client.incr(key)
+        redis_manager.client.expire(key, self.lockout_duration)
+
+        logger.warning(f"记录登录失败尝试: {identifier} ({current}/{self.max_login_attempts})")
+        if current >= self.max_login_attempts:
+            logger.warning(f"账户被锁定: {identifier} (连续{current}次失败尝试，锁定{self.lockout_duration//60}分钟)")
+
     async def get_lockout_info(self, identifier: str) -> dict:
-        """获取账户锁定信息"""
-        now = self._datetime.now()
-        
-        if identifier not in self.failed_attempts:
-            return {
-                'is_locked': False,
-                'lockout_remaining_seconds': 0,
-                'current_attempts': 0,
-                'max_attempts': self.max_login_attempts,
-                'remaining_attempts': self.max_login_attempts
-            }
-        
-        attempt_info = self.failed_attempts[identifier]
-        
-        # 检查是否被锁定
-        is_locked = 'locked_until' in attempt_info and attempt_info['locked_until'] > now
+        """获取账户锁定信息 - Redis based"""
+        key = f"login_attempts:{identifier}"
+        current_attempts = int(redis_manager.client.get(key) or 0)
+        is_locked = current_attempts >= self.max_login_attempts
+
         lockout_remaining = 0
         if is_locked:
-            lockout_remaining = int((attempt_info['locked_until'] - now).total_seconds())
-        
-        current_attempts = attempt_info.get('count', 0)
-        
+            ttl = redis_manager.client.ttl(key)
+            lockout_remaining = max(0, ttl) if ttl > 0 else 0
+
         return {
             'is_locked': is_locked,
-            'lockout_remaining_seconds': max(0, lockout_remaining),
+            'lockout_remaining_seconds': lockout_remaining,
             'current_attempts': current_attempts,
             'max_attempts': self.max_login_attempts,
             'remaining_attempts': max(0, self.max_login_attempts - current_attempts)

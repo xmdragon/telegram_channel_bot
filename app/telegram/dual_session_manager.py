@@ -50,6 +50,10 @@ class TelegramDualSessionManager:
         self._sender_callbacks: List[Callable] = []
         self._disconnection_callbacks: List[Callable] = []
 
+        # 连接锁 - 防止并发调用创建多余连接
+        self._listener_lock: Optional[asyncio.Lock] = None
+        self._sender_lock: Optional[asyncio.Lock] = None
+
         # 获取代理配置
         self._proxy_config = self._get_proxy_config()
 
@@ -97,22 +101,38 @@ class TelegramDualSessionManager:
         """添加断开连接回调"""
         self._disconnection_callbacks.append(callback)
     
+    def _get_listener_lock(self) -> asyncio.Lock:
+        """懒初始化监听客户端连接锁"""
+        if self._listener_lock is None:
+            self._listener_lock = asyncio.Lock()
+        return self._listener_lock
+
+    def _get_sender_lock(self) -> asyncio.Lock:
+        """懒初始化发送客户端连接锁"""
+        if self._sender_lock is None:
+            self._sender_lock = asyncio.Lock()
+        return self._sender_lock
+
     async def get_listener_client(self) -> Optional[TelegramClient]:
         """
         获取监听客户端（长连接）
         专门用于运行事件循环和监听消息
         """
         if not self.listener_connected:
-            await self._connect_listener()
+            async with self._get_listener_lock():
+                if not self.listener_connected:
+                    await self._connect_listener()
         return self.listener_client
-    
+
     async def get_sender_client(self) -> Optional[TelegramClient]:
         """
         获取发送客户端（按需连接）
         专门用于API调用、消息转发、媒体处理
         """
         if not self.sender_connected or not self.sender_client:
-            await self._connect_sender()
+            async with self._get_sender_lock():
+                if not self.sender_connected or not self.sender_client:
+                    await self._connect_sender()
         return self.sender_client
     
     async def _connect_listener(self) -> bool:

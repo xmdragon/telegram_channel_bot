@@ -3,7 +3,6 @@
 处理消息的基本增删改查操作
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 from datetime import datetime
 from app.utils.timezone import get_current_time, format_for_api
@@ -12,17 +11,16 @@ import os
 import json
 
 from app.storage.redis_manager import redis_manager
-from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
 from app.core.media_paths import media_paths
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 from telethon.errors import FloodWaitError
 import re
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-security = HTTPBearer(auto_error=False)
 
 # 依赖注入辅助函数
 def get_message_processor() -> MessageProcessor:
@@ -51,26 +49,6 @@ def extract_message_id_from_target_link(target_link: str) -> Optional[int]:
 
     return None
 
-# 认证中间件
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """获取当前用户"""
-    if not credentials:
-        return None
-    
-    try:
-        auth_service = get_auth_service()
-        return await auth_service.get_current_user(credentials.credentials)
-    except Exception as e:
-        logger.error(f"获取当前用户失败: {e}")
-        return None
-
-async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
-    """要求用户认证"""
-    if not user:
-        raise HTTPException(status_code=401, detail="未授权访问")
-    return user
 
 
 @router.get(ROUTES.messages.list)
@@ -1284,7 +1262,7 @@ async def publish_single_message(
                     'needs_retry': True,
                     'flood_wait_seconds': e.seconds
                 })
-            except:
+            except Exception:
                 pass
 
         # 重新抛出异常，让上层处理重试逻辑
@@ -1305,7 +1283,7 @@ async def publish_single_message(
                     'auto_forwarder_status': False,
                     'auto_forward_error': error_msg
                 })
-            except:
+            except Exception:
                 pass
 
         return {
@@ -1333,7 +1311,7 @@ async def publish_single_message(
                     'auto_forwarder_status': False,
                     'auto_forward_error': f"转发错误: {error_msg}"
                 })
-            except:
+            except Exception:
                 pass
         elif is_auto_forward and is_system_error:
             # 系统错误：不写入消息，让auto_forwarder重试

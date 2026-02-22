@@ -6,14 +6,16 @@ import logging
 import json
 import uuid
 import os
+import re
 from pathlib import Path
-from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 
 from app.core.route_config import ROUTES
 from app.core.path_config import PathConfig
 from app.services.config_manager import config_manager
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ class EmojiListResponse(BaseModel):
 # ============= API端点 =============
 
 @router.post(ROUTES.publish.send_message)
-async def send_message(request: PublishMessageRequest):
+async def send_message(request: PublishMessageRequest, user: Dict[str, Any] = Depends(require_auth)):
     """
     发布消息到目标频道
 
@@ -185,7 +187,7 @@ async def send_message(request: PublishMessageRequest):
 
 
 @router.post(ROUTES.publish.upload_media)
-async def upload_media(file: UploadFile = File(...)):
+async def upload_media(file: UploadFile = File(...), user: Dict[str, Any] = Depends(require_auth)):
     """
     上传媒体文件
 
@@ -196,11 +198,18 @@ async def upload_media(file: UploadFile = File(...)):
         文件信息
     """
     try:
-        # 1. 验证文件类型
+        # 1. Validate file extension whitelist
+        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.pdf', '.doc', '.docx'}
+        file_extension = Path(file.filename).suffix.lower()
+        if file_extension not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"不支持的文件类型: {file_extension}")
+
+        # 2. 验证MIME类型
         allowed_types = [
             'image/jpeg', 'image/png', 'image/gif', 'image/webp',
             'video/mp4', 'video/mpeg', 'video/quicktime',
-            'application/pdf', 'application/msword'
+            'application/pdf', 'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         ]
 
         if file.content_type not in allowed_types:
@@ -209,25 +218,24 @@ async def upload_media(file: UploadFile = File(...)):
                 detail=f"不支持的文件类型: {file.content_type}"
             )
 
-        # 2. 验证文件大小（200MB限制）
-        max_size = await config_manager.get_config('collection.max_media_size_mb', '200')
-        max_size_bytes = int(max_size) * 1024 * 1024
+        # 3. Stream-check file size
+        max_size_mb = int(await config_manager.get_config('collection.max_media_size_mb', '200'))
+        max_size_bytes = max_size_mb * 1024 * 1024
 
-        # 读取文件内容
-        content = await file.read()
-        file_size = len(content)
+        chunks = []
+        total_size = 0
+        while chunk := await file.read(1024 * 1024):  # 1MB chunks
+            total_size += len(chunk)
+            if total_size > max_size_bytes:
+                raise HTTPException(status_code=413, detail=f"文件大小超过限制: {max_size_mb}MB")
+            chunks.append(chunk)
+        content = b''.join(chunks)
+        file_size = total_size
 
-        if file_size > max_size_bytes:
-            raise HTTPException(
-                status_code=400,
-                detail=f"文件大小超过限制: {file_size / 1024 / 1024:.1f}MB > {max_size}MB"
-            )
-
-        # 3. 生成唯一文件ID
-        file_extension = Path(file.filename).suffix
+        # 4. 生成唯一文件ID
         file_id = f"{uuid.uuid4()}{file_extension}"
 
-        # 4. 保存到临时目录
+        # 5. 保存到临时目录
         publish_dir = Path(PathConfig.TEMP_MEDIA_DIR) / "publish"
         publish_dir.mkdir(parents=True, exist_ok=True)
 
@@ -235,10 +243,10 @@ async def upload_media(file: UploadFile = File(...)):
         with open(file_path, 'wb') as f:
             f.write(content)
 
-        # 5. 生成预览URL
+        # 6. 生成预览URL
         preview_url = f"/temp_media/publish/{file_id}"
 
-        # 6. 返回文件信息
+        # 7. 返回文件信息
         return MediaFileInfo(
             file_id=file_id,
             file_name=file.filename,
@@ -255,7 +263,7 @@ async def upload_media(file: UploadFile = File(...)):
 
 
 @router.delete(ROUTES.publish.delete_media)
-async def delete_media(file_id: str):
+async def delete_media(file_id: str, user: Dict[str, Any] = Depends(require_auth)):
     """
     删除临时媒体文件
 
@@ -266,7 +274,14 @@ async def delete_media(file_id: str):
         删除结果
     """
     try:
+        # Validate file_id to prevent path traversal
+        if not re.match(r'^[a-zA-Z0-9_\-]+\.[a-zA-Z0-9]+$', file_id):
+            raise HTTPException(status_code=400, detail="无效的文件ID")
+
         file_path = Path(PathConfig.TEMP_MEDIA_DIR) / "publish" / file_id
+        publish_dir = (Path(PathConfig.TEMP_MEDIA_DIR) / "publish").resolve()
+        if not file_path.resolve().is_relative_to(publish_dir):
+            raise HTTPException(status_code=400, detail="无效的文件路径")
 
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="文件不存在")
@@ -312,7 +327,7 @@ async def get_emoji_list() -> EmojiListResponse:
 
 
 @router.post(ROUTES.publish.preview)
-async def preview_message(request: PreviewRequest):
+async def preview_message(request: PreviewRequest, user: Dict[str, Any] = Depends(require_auth)):
     """
     预览消息（添加频道落款）
 

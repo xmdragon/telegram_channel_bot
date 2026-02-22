@@ -341,8 +341,8 @@ function getAuthToken() {
         return token;
     }
     
-    // 如果都没有，返回默认值
-    return 'your-auth-token';
+    // 如果都没有，返回null
+    return null;
 }
 
 // 导出为全局函数

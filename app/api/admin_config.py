@@ -3,39 +3,16 @@
 包括：配置更新、转发配置、审核群解析
 """
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 import logging
 
 from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
-from app.services.auth_service import get_auth_service
+from app.api.deps import require_auth
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-security = HTTPBearer(auto_error=False)
-
-# 认证中间件
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """获取当前用户"""
-    if not credentials:
-        return None
-
-    try:
-        auth_service = get_auth_service()
-        return await auth_service.get_current_user(credentials.credentials)
-    except Exception as e:
-        logger.error(f"获取当前用户失败: {e}")
-        return None
-
-async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
-    """要求用户认证"""
-    if not user:
-        raise HTTPException(status_code=401, detail="未授权访问")
-    return user
 
 async def resolve_telegram_entity(entity_link: str, entity_type: str = "entity") -> Tuple[Optional[str], str]:
     """

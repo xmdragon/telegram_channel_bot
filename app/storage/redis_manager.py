@@ -232,102 +232,101 @@ class RedisManager:
                 logger.error(f"获取消息失败: {e}")
             return None
     
-    def update_message_atomic(self, message_id: str, update_data: Dict[str, Any], user_id: str = None) -> bool:
+    def update_message_atomic(self, message_id: str, update_data: Dict[str, Any], user_id: str = None, max_retries: int = 3) -> bool:
         """
-        原子更新消息 - 唯一的消息更新方法
-        
-        消除特殊情况：
-        1. 所有更新都通过这个方法
-        2. 自动处理索引更新
-        3. 强制数据一致性
-        
+        原子更新消息 - 使用WATCH/MULTI保证真正的原子性
+
         Args:
             message_id: 完整消息ID格式 "channel_id:message_id"
             update_data: 更新数据
             user_id: 操作用户ID (可选)
-            
+            max_retries: 乐观锁冲突时的最大重试次数
+
         Returns:
             bool: 是否更新成功
         """
         try:
-            # 解析消息ID
             if ':' not in message_id:
                 logger.error(f"消息ID格式错误: {message_id}, 应为 channel_id:message_id 格式")
                 return False
-            
+
             channel_id, msg_id = message_id.rsplit(':', 1)
             try:
                 msg_id = int(msg_id)
             except ValueError:
                 logger.error(f"消息ID格式错误: {message_id}, message_id部分必须为数字")
                 return False
-            
-            # 获取现有数据
-            existing_data = self.get_message(channel_id, msg_id)
-            if existing_data is None:
-                logger.error(f"消息不存在: {message_id}")
-                return False
-            
-            # 获取旧状态用于索引更新
-            old_status = existing_data.get('status', 'pending')
 
-            # 合并更新数据，处理None值（删除字段）
-            for key, value in update_data.items():
-                if value is None:
-                    # None值表示删除该字段
-                    existing_data.pop(key, None)
-                else:
-                    existing_data[key] = value
-
-            existing_data['updated_at'] = get_current_time().isoformat()
-            
-            if user_id:
-                existing_data['updated_by'] = user_id
-            
-            # 设计原则：确保所有消息都有有效status
-            from app.core.message_status import is_valid_status
-            new_status = existing_data.get('status', 'pending')
-            if not is_valid_status(new_status):
-                logger.warning(f"强制修正无效状态 '{new_status}' -> 'pending': {message_id}")
-                existing_data['status'] = 'pending'
-                new_status = 'pending'
-            
-            # 原子操作：更新消息数据和索引
-            import time
-            current_time = time.time()
-            pipeline = self.client.pipeline()
-            
-            # 更新消息数据
             message_key = f"message:{channel_id}:{msg_id}"
-            message_json = self._serialize_json(existing_data)
-            pipeline.hset(message_key, mapping={
-                "data": message_json,
-                "updated_at": get_current_time().isoformat()
-            })
-            
-            # 更新索引（仅当状态变更时）
-            if old_status != new_status:
-                from app.core.message_status import MessageStatus, get_legacy_status
+            from app.core.message_status import is_valid_status, get_legacy_status
 
-                # 从旧状态索引中移除
-                if old_status:
-                    pipeline.zrem(f"index:msg:{old_status}", message_id)
-                    # 同时从兼容索引中移除
-                    old_legacy = get_legacy_status(old_status)
-                    pipeline.zrem(f"index:msg:{old_legacy}", message_id)
+            for attempt in range(max_retries):
+                try:
+                    with self.client.pipeline() as pipe:
+                        # WATCH the message key for optimistic locking
+                        pipe.watch(message_key)
 
-                # 添加到新状态索引
-                if new_status:
-                    pipeline.zadd(f"index:msg:{new_status}", {message_id: current_time})
-                    # 同时添加到兼容索引
-                    new_legacy = get_legacy_status(new_status)
-                    pipeline.zadd(f"index:msg:{new_legacy}", {message_id: current_time})
-            
-            # 执行原子操作
-            pipeline.execute()
-            
-            return True
-            
+                        # Read current data within the WATCH
+                        raw_data = pipe.hget(message_key, "data")
+                        if not raw_data:
+                            logger.error(f"消息不存在: {message_id}")
+                            return False
+
+                        existing_data = self._deserialize_json(raw_data)
+                        if existing_data is None:
+                            logger.error(f"消息数据损坏: {message_id}")
+                            return False
+
+                        old_status = existing_data.get('status', 'pending')
+
+                        for key, value in update_data.items():
+                            if value is None:
+                                existing_data.pop(key, None)
+                            else:
+                                existing_data[key] = value
+
+                        existing_data['updated_at'] = get_current_time().isoformat()
+                        if user_id:
+                            existing_data['updated_by'] = user_id
+
+                        new_status = existing_data.get('status', 'pending')
+                        if not is_valid_status(new_status):
+                            logger.warning(f"强制修正无效状态 '{new_status}' -> 'pending': {message_id}")
+                            existing_data['status'] = 'pending'
+                            new_status = 'pending'
+
+                        # Start MULTI transaction
+                        pipe.multi()
+
+                        current_time = time.time()
+                        message_json = self._serialize_json(existing_data)
+                        pipe.hset(message_key, mapping={
+                            "data": message_json,
+                            "updated_at": get_current_time().isoformat()
+                        })
+
+                        if old_status != new_status:
+                            if old_status:
+                                pipe.zrem(f"index:msg:{old_status}", message_id)
+                                old_legacy = get_legacy_status(old_status)
+                                pipe.zrem(f"index:msg:{old_legacy}", message_id)
+                            if new_status:
+                                pipe.zadd(f"index:msg:{new_status}", {message_id: current_time})
+                                new_legacy = get_legacy_status(new_status)
+                                pipe.zadd(f"index:msg:{new_legacy}", {message_id: current_time})
+
+                        pipe.execute()
+                        return True
+
+                except redis.WatchError:
+                    if attempt < max_retries - 1:
+                        logger.debug(f"WATCH冲突，重试 {attempt + 1}/{max_retries}: {message_id}")
+                        continue
+                    logger.warning(f"WATCH冲突达到最大重试次数: {message_id}")
+                    return False
+
+            return False
+
         except Exception as e:
             logger.error(f"原子更新消息失败: {e}")
             return False
@@ -472,7 +471,7 @@ class RedisManager:
 
                 # 5. 清理去重SimHash索引
                 # 查找所有包含该消息ID的SimHash索引并删除
-                simhash_keys = self.client.keys("dup:simhash:*")
+                simhash_keys = self._scan_keys("dup:simhash:*")
                 for key in simhash_keys:
                     if self.client.sismember(key, full_message_id):
                         pipeline.srem(key, full_message_id)
@@ -565,40 +564,32 @@ class RedisManager:
         try:
             from app.core.message_status import MessageStatus
 
-            # 获取所有待处理状态的消息
+            # 获取所有待处理状态的消息（带scores，避免O(N^2)排序）
             pending_statuses = MessageStatus.get_pending_like_statuses()
             all_keys = []
 
             for status in pending_statuses:
-                if reverse:
-                    keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
-                else:
-                    keys = self.client.zrange(f"index:msg:{status}", 0, -1)
-                all_keys.extend([(key, status) for key in keys])
+                keys_with_scores = self.client.zrange(f"index:msg:{status}", 0, -1, withscores=True)
+                all_keys.extend([(key, status, score) for key, score in keys_with_scores])
 
-            # 按时间排序并分页
-            if reverse:
-                all_keys.sort(reverse=True, key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
-            else:
-                all_keys.sort(key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
+            # 按score排序并分页
+            all_keys.sort(reverse=reverse, key=lambda x: x[2])
 
             paginated_keys = all_keys[offset:offset + limit]
             
             messages = []
             invalid_keys = []
             
-            for key, status_index in paginated_keys:
+            for key, status_index, _score in paginated_keys:
                 # 解析消息键格式：channel_id:message_id
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
-                        # 🔥 状态验证：确保消息状态与索引匹配
                         actual_status = message_data.get('status', 'pending')
                         if actual_status in pending_statuses:
                             messages.append(message_data)
                         else:
-                            # 状态不匹配，添加到清理列表
                             invalid_keys.append((key, status_index))
                             logger.debug(f"状态不匹配的消息从pending索引清理: {key} (实际状态: {actual_status})")
                     else:
@@ -623,29 +614,23 @@ class RedisManager:
         try:
             from app.core.message_status import MessageStatus
 
-            # 获取所有已发布状态的消息
+            # 获取所有已发布状态的消息（带scores，避免O(N^2)排序）
             approved_statuses = MessageStatus.get_approved_statuses()
             all_keys = []
 
             for status in approved_statuses:
-                if reverse:
-                    keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
-                else:
-                    keys = self.client.zrange(f"index:msg:{status}", 0, -1)
-                all_keys.extend([(key, status) for key in keys])
+                keys_with_scores = self.client.zrange(f"index:msg:{status}", 0, -1, withscores=True)
+                all_keys.extend([(key, status, score) for key, score in keys_with_scores])
 
-            # 按时间排序并分页
-            if reverse:
-                all_keys.sort(reverse=True, key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
-            else:
-                all_keys.sort(key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
+            # 按score排序并分页
+            all_keys.sort(reverse=reverse, key=lambda x: x[2])
 
             paginated_keys = all_keys[offset:offset + limit]
-            
+
             messages = []
             invalid_keys = []
-            
-            for key, status_index in paginated_keys:
+
+            for key, status_index, _score in paginated_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
@@ -679,29 +664,23 @@ class RedisManager:
         try:
             from app.core.message_status import MessageStatus
 
-            # 获取所有已拒绝状态的消息
+            # 获取所有已拒绝状态的消息（带scores，避免O(N^2)排序）
             rejected_statuses = MessageStatus.get_rejected_statuses()
             all_keys = []
 
             for status in rejected_statuses:
-                if reverse:
-                    keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
-                else:
-                    keys = self.client.zrange(f"index:msg:{status}", 0, -1)
-                all_keys.extend([(key, status) for key in keys])
+                keys_with_scores = self.client.zrange(f"index:msg:{status}", 0, -1, withscores=True)
+                all_keys.extend([(key, status, score) for key, score in keys_with_scores])
 
-            # 按时间排序并分页
-            if reverse:
-                all_keys.sort(reverse=True, key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
-            else:
-                all_keys.sort(key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
+            # 按score排序并分页
+            all_keys.sort(reverse=reverse, key=lambda x: x[2])
 
             paginated_keys = all_keys[offset:offset + limit]
 
             messages = []
             invalid_keys = []
 
-            for key, status_index in paginated_keys:
+            for key, status_index, _score in paginated_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
@@ -982,7 +961,7 @@ class RedisManager:
             min_timestamp = None
 
             # 检查所有状态索引: pending, rejected, 以及各频道索引
-            index_keys = self.client.keys("index:msg:*")
+            index_keys = self._scan_keys("index:msg:*")
 
             for index_key in index_keys:
                 try:
@@ -1098,8 +1077,17 @@ class RedisManager:
             logger.error(f"删除会话失败: {e}")
             return False
     
+    def get_active_sessions(self) -> List[str]:
+        """获取所有活跃会话token列表"""
+        try:
+            tokens = self.client.hkeys("session:activity")
+            return [t.decode('utf-8') if isinstance(t, bytes) else t for t in tokens]
+        except Exception as e:
+            logger.error(f"获取活跃会话失败: {e}")
+            return []
+
     # ===========================================
-    # 频道状态管理 - 替换RedisChannelStore  
+    # 频道状态管理 - 替换RedisChannelStore
     # ===========================================
     
     def set_channel_state(self, channel_id: str, state_data: Dict[str, Any]) -> bool:
@@ -1136,37 +1124,63 @@ class RedisManager:
     # 分布式锁管理 - 替换RedisLockManager
     # ===========================================
     
-    def acquire_lock(self, lock_name: str, timeout: int = 10) -> bool:
-        """获取分布式锁"""
+    # Lua script for atomic verify-and-delete lock release
+    _RELEASE_LOCK_SCRIPT = """
+    if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+    else
+        return 0
+    end
+    """
+
+    def acquire_lock(self, lock_name: str, timeout: int = 10) -> Optional[str]:
+        """获取分布式锁
+
+        Returns:
+            锁标识符字符串（成功时），None（失败时）
+            释放锁时必须传入此标识符
+        """
         try:
             lock_key = f"lock:{lock_name}"
-            identifier = f"{time.time()}_{id(self)}"
-            
-            # 尝试获取锁
+            identifier = f"{time.time()}_{threading.get_ident()}"
+
             result = self.client.set(lock_key, identifier, nx=True, ex=timeout)
-            
+
             if result:
                 logger.debug(f"锁已获取: {lock_name}")
-                return True
+                return identifier
             else:
                 logger.debug(f"锁获取失败: {lock_name}")
-                return False
-                
+                return None
+
         except Exception as e:
             logger.error(f"获取锁失败: {e}")
-            return False
-    
-    def release_lock(self, lock_name: str) -> bool:
-        """释放分布式锁"""
+            return None
+
+    def release_lock(self, lock_name: str, identifier: str = None) -> bool:
+        """释放分布式锁 - 使用Lua脚本原子验证+删除
+
+        Args:
+            lock_name: 锁名称
+            identifier: acquire_lock返回的标识符（强烈建议传入）
+        """
         try:
             lock_key = f"lock:{lock_name}"
-            result = self.client.delete(lock_key)
-            
-            if result:
-                logger.debug(f"锁已释放: {lock_name}")
-            
-            return bool(result)
-            
+
+            if identifier:
+                # 原子验证+删除：只有持有者才能释放
+                result = self.client.eval(self._RELEASE_LOCK_SCRIPT, 1, lock_key, identifier)
+                if result:
+                    logger.debug(f"锁已释放: {lock_name}")
+                else:
+                    logger.warning(f"锁释放失败（标识符不匹配或已过期）: {lock_name}")
+                return bool(result)
+            else:
+                # 向后兼容：无标识符时直接删除（不安全，记录警告）
+                logger.warning(f"release_lock未传入identifier，使用不安全删除: {lock_name}")
+                result = self.client.delete(lock_key)
+                return bool(result)
+
         except Exception as e:
             logger.error(f"释放锁失败: {e}")
             return False
@@ -1187,19 +1201,20 @@ class RedisManager:
                 # 获取现有消息数据
                 existing_data = self.get_message(channel_id, message_id)
                 if existing_data:
+                    from app.core.message_status import is_valid_status, get_legacy_status
+
+                    # 读取旧状态（必须在修改status之前）
+                    old_status = existing_data.get('status', 'pending')
+                    current_time = time.time()
+
                     # 更新状态
                     existing_data['status'] = new_status
                     message_json = self._serialize_json(existing_data)
-                    
+
                     pipeline.hset(message_key, mapping={
                         "data": message_json,
                         "updated_at": get_current_time().isoformat()
                     })
-                    
-                    # 更新索引
-                    from app.core.message_status import is_valid_status, get_legacy_status
-                    old_status = existing_data.get('status', 'pending')
-                    current_time = time.time()
 
                     # 从旧状态索引中移除（支持7状态和3状态）
                     if is_valid_status(old_status):
@@ -1232,7 +1247,7 @@ class RedisManager:
             deleted_count = 0
 
             # 先获取所有SimHash索引键
-            simhash_keys = self.client.keys("dup:simhash:*")
+            simhash_keys = self._scan_keys("dup:simhash:*")
 
             for channel_id, message_id in message_ids:
                 message_key = f"message:{channel_id}:{message_id}"
@@ -1275,16 +1290,15 @@ class RedisManager:
             pipeline.zcard("index:msg:approved")   # 已通过消息数
             pipeline.zcard("index:msg:rejected")   # 已拒绝消息数
             
-            # 获取所有频道
-            pipeline.keys("channel:*:count")
+            # 获取所有频道 - 使用scan_iter替代keys
+            channel_keys = self._scan_keys("channel:*:count")
             
             results = pipeline.execute()
-            
+
             pending_count = results[0] or 0
-            approved_count = results[1] or 0 
+            approved_count = results[1] or 0
             rejected_count = results[2] or 0
-            channel_keys = results[3] or []
-            
+
             # 计算频道数量和消息总数
             channel_count = len(channel_keys)
             total_messages = pending_count + approved_count + rejected_count
@@ -1448,7 +1462,11 @@ class RedisManager:
     # ===========================================
     # 内部工具方法
     # ===========================================
-    
+
+    def _scan_keys(self, pattern: str) -> List[str]:
+        """使用scan_iter替代keys()，避免阻塞Redis"""
+        return list(self.client.scan_iter(match=pattern, count=100))
+
     def _serialize_json(self, data: Any) -> str:
         """序列化JSON数据"""
         if isinstance(data, (dict, list)):

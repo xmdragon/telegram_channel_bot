@@ -71,8 +71,18 @@ const WebSocketManager = {
         }
 
         // 自动重连
-        if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.scheduleReconnect();
+        if (!event.wasClean) {
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.scheduleReconnect();
+            } else {
+                // 达到最大重连次数后，等待60秒重置计数器再试
+                setTimeout(() => {
+                    this.reconnectAttempts = 0;
+                    if (!this.isConnected && this.connectionUrl && this.connectionOptions) {
+                        this.connectWithOptions(this.connectionUrl, this.connectionOptions);
+                    }
+                }, 60000);
+            }
         }
     },
 
@@ -203,7 +213,15 @@ const WebSocketManager = {
         }
 
         try {
-            this.instance = new WebSocket(url);
+            // 添加auth token到WebSocket URL
+            let wsUrl = url;
+            const token = localStorage.getItem('admin_token');
+            if (token) {
+                const separator = url.includes('?') ? '&' : '?';
+                wsUrl = `${url}${separator}token=${encodeURIComponent(token)}`;
+            }
+
+            this.instance = new WebSocket(wsUrl);
             this.setConnectionTimeout(timeout);
 
             this.instance.onopen = (event) => {

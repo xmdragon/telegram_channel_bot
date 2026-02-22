@@ -180,7 +180,7 @@ class WebSocketManager:
                 await pubsub.unsubscribe("websocket:broadcast")
                 await redis_client.close()
                 logger.info("Redis订阅监听器已关闭")
-            except:
+            except Exception:
                 pass
 
     async def stop_redis_listener(self):
@@ -317,6 +317,18 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
 
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket端点 - 支持双向通信"""
+    token = websocket.query_params.get("token")
+    if token:
+        from app.services.auth_service import get_auth_service
+        try:
+            auth = get_auth_service()
+            user = await auth.get_current_user(token)
+            if not user:
+                await websocket.close(code=4001, reason="Invalid token")
+                return
+        except Exception:
+            await websocket.close(code=4001, reason="Auth service error")
+            return
     await websocket_manager.connect(websocket)
     try:
         while True:

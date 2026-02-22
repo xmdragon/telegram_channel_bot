@@ -410,7 +410,7 @@ class ConfigManager:
         cache_size = 0
         try:
             if redis_healthy:
-                config_keys = redis_manager.redis_client.keys("config:*")
+                config_keys = redis_manager.client.keys("config:*")
                 cache_size = len(config_keys)
         except Exception as e:
             logger.debug(f"获取Redis配置项数量失败: {e}")
@@ -502,10 +502,9 @@ class ConfigManager:
             redis_manager = self._get_redis_manager()
             
             # 获取所有config:*键并删除
-            import redis
-            r = redis_manager._redis
+            r = redis_manager.client
             config_keys = r.keys("config:*")
-            
+
             if config_keys:
                 r.delete(*config_keys)
                 logger.info(f"已清理 {len(config_keys)} 个Redis配置键")
@@ -595,7 +594,7 @@ class ConfigManager:
                 return isinstance(value, (dict, list, str))
             else:
                 return True
-        except:
+        except Exception:
             return False
 
     def _serialize_value(self, value: Any, config_type: str) -> str:

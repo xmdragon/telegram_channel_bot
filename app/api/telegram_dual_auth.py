@@ -2,13 +2,14 @@
 双Session认证API - 基于dual_session_manager的统一实现
 复用现有的Session连接，避免冲突
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, Literal
 import logging
 
 # 导入路由常量
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 
 # 导入统一的Session管理器（已集成认证功能）
 from app.telegram.dual_session_manager import dual_session_manager
@@ -40,7 +41,7 @@ class VerifyPasswordRequest(BaseModel):
 
 
 @router.post(ROUTES.dual_auth.init_session)
-async def init_session_auth(request: SessionInitRequest):
+async def init_session_auth(request: SessionInitRequest, user: dict = Depends(require_auth)):
     """初始化Session认证 - 基于现有连接"""
     try:
         session_manager = dual_session_manager
@@ -90,7 +91,7 @@ async def init_session_auth(request: SessionInitRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.dual_auth.send_code)
-async def send_verification_code(request: SendCodeRequest):
+async def send_verification_code(request: SendCodeRequest, user: dict = Depends(require_auth)):
     """发送验证码"""
     try:
         # 创建临时认证客户端
@@ -123,7 +124,7 @@ async def send_verification_code(request: SendCodeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.dual_auth.verify_code)
-async def verify_verification_code(request: VerifyCodeRequest):
+async def verify_verification_code(request: VerifyCodeRequest, user: dict = Depends(require_auth)):
     """验证验证码"""
     try:
         # 从session管理器获取认证信息
@@ -162,7 +163,7 @@ async def verify_verification_code(request: VerifyCodeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post(ROUTES.dual_auth.verify_password)
-async def verify_two_step_password(request: VerifyPasswordRequest):
+async def verify_two_step_password(request: VerifyPasswordRequest, user: dict = Depends(require_auth)):
     """验证两步验证密码"""
     try:
         # 从session管理器获取认证信息
@@ -192,7 +193,7 @@ async def verify_two_step_password(request: VerifyPasswordRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(ROUTES.dual_auth.session_status)
-async def get_session_status(session_type: Literal["listener", "sender"]):
+async def get_session_status(session_type: Literal["listener", "sender"], user: dict = Depends(require_auth)):
     """获取Session状态"""
     try:
         # 检查是否有正在进行的认证

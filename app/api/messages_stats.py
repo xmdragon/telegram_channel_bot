@@ -3,21 +3,19 @@
 处理统计数据、性能监控、报告生成等功能
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from app.utils.timezone import get_current_time, format_for_api
 import logging
 
 from app.storage.redis_manager import redis_manager
-from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
 from app.core.route_config import ROUTES
+from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-security = HTTPBearer(auto_error=False)
 
 # 依赖注入辅助函数
 def get_message_processor() -> MessageProcessor:
@@ -25,27 +23,6 @@ def get_message_processor() -> MessageProcessor:
 
 def get_channel_manager() -> ChannelManager:
     return ChannelManager()
-
-# 认证中间件
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """获取当前用户"""
-    if not credentials:
-        return None
-    
-    try:
-        auth_service = get_auth_service()
-        return await auth_service.get_current_user(credentials.credentials)
-    except Exception as e:
-        logger.error(f"获取当前用户失败: {e}")
-        return None
-
-async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
-    """要求用户认证"""
-    if not user:
-        raise HTTPException(status_code=401, detail="未授权访问")
-    return user
 
 
 @router.get(ROUTES.messages.stats_overview)

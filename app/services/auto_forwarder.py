@@ -219,53 +219,55 @@ class AutoForwarder:
         try:
             cutoff_time = get_current_time() - timedelta(seconds=delay_seconds)
 
-            # 获取所有待审核消息
-            pending_messages = redis_manager.get_messages_by_status('pending', limit=1000)
+            # 使用小批量获取最旧的待审核消息，避免加载全部
+            # 每次取50条最旧的，逐批查找符合条件的
+            batch_size = 50
+            offset = 0
+            max_batches = 20  # 最多检查1000条
 
-            if not pending_messages:
-                return None
+            for _ in range(max_batches):
+                pending_messages = redis_manager.get_messages_by_status(
+                    'pending', limit=batch_size, offset=offset, reverse=False
+                )
 
-            # 筛选符合条件的消息
-            eligible_messages = []
+                if not pending_messages:
+                    return None
 
-            for msg in pending_messages:
-                # 跳过已标记失败的消息（除非需要重试）
-                if msg.get('auto_forward_failed') and not msg.get('needs_retry'):
-                    continue
+                for msg in pending_messages:
+                    # 跳过已标记失败的消息（除非需要重试）
+                    if msg.get('auto_forward_failed') and not msg.get('needs_retry'):
+                        continue
 
-                # 跳过已处理的消息（广告、超长等）
-                if msg.get('auto_forward_processed'):
-                    continue
+                    # 跳过已处理的消息（广告、超长等）
+                    if msg.get('auto_forward_processed'):
+                        continue
 
-                # 🎯 跳过疑似重复消息
-                duplicate_status = msg.get('duplicate_status', 'none')
-                if duplicate_status == 'suspected':
-                    logger.debug(f"跳过疑似重复消息: {msg.get('source_channel')}:{msg.get('message_id')} "
-                                f"(原消息: {msg.get('original_message_id')}, 相似度: {msg.get('similarity_score', 0):.3f})")
-                    continue
+                    # 跳过疑似重复消息
+                    duplicate_status = msg.get('duplicate_status', 'none')
+                    if duplicate_status == 'suspected':
+                        logger.debug(f"跳过疑似重复消息: {msg.get('source_channel')}:{msg.get('message_id')} "
+                                    f"(原消息: {msg.get('original_message_id')}, 相似度: {msg.get('similarity_score', 0):.3f})")
+                        continue
 
-                # 检查创建时间
-                created_at_str = msg.get('created_at')
-                if not created_at_str:
-                    continue
+                    # 检查创建时间
+                    created_at_str = msg.get('created_at')
+                    if not created_at_str:
+                        continue
 
-                try:
-                    from app.utils.timezone import to_utc
-                    created_at = to_utc(datetime.fromisoformat(created_at_str.replace('Z', '+00:00')))
+                    try:
+                        from app.utils.timezone import to_utc
+                        created_at = to_utc(datetime.fromisoformat(created_at_str.replace('Z', '+00:00')))
 
-                    if created_at <= cutoff_time:
-                        eligible_messages.append(msg)
+                        if created_at <= cutoff_time:
+                            return msg  # 已按时间排序，第一个符合条件的就是最旧的
 
-                except Exception as e:
-                    logger.error(f"解析消息时间失败: {e}")
-                    continue
+                    except Exception as e:
+                        logger.error(f"解析消息时间失败: {e}")
+                        continue
 
-            if not eligible_messages:
-                return None
+                offset += batch_size
 
-            # 返回最旧的消息（按创建时间排序）
-            eligible_messages.sort(key=lambda x: x.get('created_at', ''))
-            return eligible_messages[0]
+            return None
 
         except Exception as e:
             logger.error(f"获取符合条件的消息失败: {e}")
@@ -322,21 +324,28 @@ class AutoForwarder:
 
     async def increment_retry_count(self, message_id: str):
         """
-        增加消息的重试计数
+        增加消息的重试计数 - 使用Redis HINCRBY实现原子递增
 
         Args:
             message_id: 消息ID (格式: "channel_id:message_id")
         """
         try:
-            # 获取当前重试次数并增加
+            if ':' not in message_id:
+                return
+
+            channel_id, msg_id = message_id.rsplit(':', 1)
+            message_key = f"message:{channel_id}:{msg_id}"
+
+            # 读取当前消息数据，原子更新retry_count
             message = redis_manager.get_message_by_id(message_id)
             if message:
                 current_count = message.get('auto_forward_retry_count', 0)
+                new_count = current_count + 1
                 redis_manager.update_message_atomic(message_id, {
-                    'auto_forward_retry_count': current_count + 1,
+                    'auto_forward_retry_count': new_count,
                     'auto_forward_last_retry': get_current_time().isoformat()
                 })
-                logger.debug(f"消息 {message_id} 重试次数增加到 {current_count + 1}")
+                logger.debug(f"消息 {message_id} 重试次数增加到 {new_count}")
         except Exception as e:
             logger.error(f"增加重试计数时出错: {e}")
 

@@ -45,9 +45,13 @@ class MessageEventHandler:
                 logger.warning(f"无法转换频道ID，跳过异常数据: {channel_data}")
         
         logger.info(f"将监听以下频道/群组: {chats_to_monitor}")
-        
+
+        if not chats_to_monitor:
+            logger.warning("监听频道列表为空，跳过事件处理器注册，避免监听所有聊天")
+            return
+
         # 新消息事件处理器 - 只监听指定的频道
-        @client.on(events.NewMessage(chats=chats_to_monitor if chats_to_monitor else None))
+        @client.on(events.NewMessage(chats=chats_to_monitor))
         async def handle_new_message(event):
             """处理新消息事件"""
             # 第一时间检查采集开关，避免不必要的处理
