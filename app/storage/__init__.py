@@ -1,4 +1,3 @@
 """
-新存储层模块
-支持Redis和JSON文件存储
+存储层模块 - SQLite主存储 + Redis仅pub/sub
 """

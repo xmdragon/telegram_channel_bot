@@ -18,6 +18,7 @@ class PathConfig:
     DATA_DIR = ROOT_DIR / "data"
     CONFIG_DIR = DATA_DIR / "config"
     TRAINING_DIR = DATA_DIR / "training"
+    DB_DIR = DATA_DIR / "db"
     BACKUP_DIR = DATA_DIR / "backups"
     LOGS_DIR = ROOT_DIR / "logs"
     LOG_DIR = LOGS_DIR  # 兼容别名
@@ -33,6 +34,9 @@ class PathConfig:
     SEPARATOR_PATTERNS_FILE = TRAINING_DIR / "separator_patterns.json"  # 分隔符模式
     TEXT_FILTERS_FILE = TRAINING_DIR / "text_filters.json"  # 文本过滤器
     
+    # 数据库文件
+    DATABASE_FILE = DB_DIR / "messages.db"
+
     # 状态文件
     SUPERVISOR_STATUS_FILE = LOGS_DIR / "supervisor_status.json"
     
@@ -45,6 +49,7 @@ class PathConfig:
             cls.DATA_DIR.mkdir(exist_ok=True)
             cls.CONFIG_DIR.mkdir(exist_ok=True)
             cls.TRAINING_DIR.mkdir(exist_ok=True)
+            cls.DB_DIR.mkdir(exist_ok=True)
             cls.BACKUP_DIR.mkdir(exist_ok=True)
             cls.LOGS_DIR.mkdir(exist_ok=True)
             cls.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
