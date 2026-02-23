@@ -498,9 +498,14 @@ class MessageForwarder:
         if not listener_client:
             raise RuntimeError("采集客户端不可用")
 
+        # 转换频道ID: -100前缀需要去掉才能用于PeerChannel
+        channel_id = int(source_channel_id)
+        if channel_id < 0:
+            channel_id = int(str(source_channel_id).replace('-100', '', 1))
+
         from telethon.tl.types import PeerChannel
         try:
-            entity = await listener_client.get_entity(PeerChannel(int(source_channel_id)))
+            entity = await listener_client.get_entity(PeerChannel(channel_id))
         except Exception:
             entity = await listener_client.get_entity(int(source_channel_id))
 
