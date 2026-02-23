@@ -281,7 +281,7 @@ const DualAuthApp = {
                 }
             } catch (error) {
                 console.error(`发送${sessionType}验证码失败:`, error);
-                session.errorMessage = '发送验证码失败';
+                session.errorMessage = error.response?.data?.detail || '发送验证码失败';
             } finally {
                 session.loading = false;
             }

@@ -564,8 +564,7 @@ class TelegramDualSessionManager:
             api_hash = await telegram_config_manager.get_api_hash()
 
             if not api_id or not api_hash:
-                logger.error("API ID或API Hash未配置")
-                return None
+                raise ValueError("请先在「Telegram认证」页面配置 API ID 和 API Hash")
 
             # 创建临时认证客户端（空session）
             auth_client = TelegramClient(

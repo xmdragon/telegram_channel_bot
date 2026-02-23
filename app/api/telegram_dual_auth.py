@@ -97,7 +97,7 @@ async def send_verification_code(request: SendCodeRequest, user: dict = Depends(
         # 创建临时认证客户端
         auth_client = await dual_session_manager.create_auth_client(request.session_type)
         if not auth_client:
-            raise HTTPException(status_code=500, detail="无法初始化认证客户端")
+            raise HTTPException(status_code=400, detail="无法初始化认证客户端")
 
         # 发送验证码
         result = await dual_session_manager.send_auth_code(
