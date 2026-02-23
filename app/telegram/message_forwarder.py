@@ -74,6 +74,9 @@ class MessageForwarder:
     
     async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道，返回目标消息链接"""
+        send_attempted = False
+        message_type = None
+        target_channel_id = None
         try:
             # ✅ 优化：使用统一消息类，消除运行时类定义
             message = StandardMessage(message)
@@ -102,9 +105,6 @@ class MessageForwarder:
             if wait_time > 0:
                 # 删除转发前限流等待的日志，会在最终结果中包含
                 pass
-
-            # 记录发送尝试的标记
-            send_attempted = False
 
             # 移除隐藏链接（系统默认策略：始终移除）
             clean_entities = None
