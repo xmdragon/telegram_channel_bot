@@ -43,6 +43,8 @@ class AppSettings:
             if os.getenv("ENABLE_SSL", "false").lower() == "true":
                 return f"https://{domain}"
             else:
+                if self.NGINX_PORT == 80:
+                    return f"http://{domain}"
                 return f"http://{domain}:{self.NGINX_PORT}"
 
         # 默认使用localhost
