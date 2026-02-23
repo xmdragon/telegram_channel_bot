@@ -25,17 +25,37 @@ class SupervisorManager:
             return
 
         self.server = None
+        self._group_name = None  # 动态检测的组名
         try:
             self.server = xmlrpc.client.ServerProxy(
                 SupervisorConfig.get_xmlrpc_url()
             )
             # 测试连接
             self.server.supervisor.getState()
+            self._detect_group_name()
             self._initialized = True
-            logger.info("Supervisor管理器初始化成功")
+            logger.info(f"Supervisor管理器初始化成功，组名: {self._group_name}")
         except Exception as e:
             logger.error(f"连接Supervisor失败: {e}")
             logger.info("服务将以降级模式运行（无Supervisor管理功能）")
+
+    def _detect_group_name(self):
+        """动态检测Supervisor中的服务组名"""
+        try:
+            processes = self.server.supervisor.getAllProcessInfo()
+            for p in processes:
+                if p.get('name', '').startswith('telegram_'):
+                    self._group_name = p.get('group', 'telegram')
+                    return
+        except Exception:
+            pass
+        self._group_name = 'telegram'
+
+    def _get_grouped_name(self, full_name: str) -> str:
+        """获取带组前缀的完整进程名"""
+        if full_name.startswith('telegram_') and self._group_name:
+            return f'{self._group_name}:{full_name}'
+        return full_name
 
     def is_connected(self) -> bool:
         """检查连接状态"""
@@ -58,7 +78,7 @@ class SupervisorManager:
 
             for p in processes:
                 # 只返回telegram组的服务
-                if p.get('group') == 'telegram':
+                if p.get('group') == self._group_name:
                     short_name = SupervisorConfig.get_short_name(p['name'])
                     service_info = SupervisorConfig.SERVICE_INFO.get(short_name, {})
 
@@ -110,8 +130,7 @@ class SupervisorManager:
         full_name = SupervisorConfig.get_service_name(service_name)
 
         # 如果服务在组中，需要使用 group:name 格式
-        if full_name.startswith('telegram_'):
-            full_name = f'telegram:{full_name}'
+        full_name = self._get_grouped_name(full_name)
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法启动服务{full_name}")
@@ -135,9 +154,7 @@ class SupervisorManager:
         """停止服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
 
-        # 如果服务在组中，需要使用 group:name 格式
-        if full_name.startswith('telegram_'):
-            full_name = f'telegram:{full_name}'
+        full_name = self._get_grouped_name(full_name)
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法停止服务{full_name}")
@@ -161,9 +178,7 @@ class SupervisorManager:
         """重启服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
 
-        # 如果服务在组中，需要使用 group:name 格式
-        if full_name.startswith('telegram_'):
-            full_name = f'telegram:{full_name}'
+        full_name = self._get_grouped_name(full_name)
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法重启服务{full_name}")
@@ -190,10 +205,7 @@ class SupervisorManager:
         """获取服务日志"""
         full_name = SupervisorConfig.get_service_name(service_name)
 
-        # 如果服务在组中，需要使用 group:name 格式
-        # telegram组中的服务需要加上组前缀
-        if full_name.startswith('telegram_'):
-            full_name = f'telegram:{full_name}'
+        full_name = self._get_grouped_name(full_name)
 
         if not self.server:
             return "Supervisor未连接"
@@ -228,7 +240,7 @@ class SupervisorManager:
             return False
 
         try:
-            result = self.server.supervisor.startProcessGroup('telegram')
+            result = self.server.supervisor.startProcessGroup(self._group_name or 'telegram')
             logger.info(f"所有服务启动成功: {result}")
             return True
         except xmlrpc.client.Fault as e:
@@ -248,7 +260,7 @@ class SupervisorManager:
             return False
 
         try:
-            result = self.server.supervisor.stopProcessGroup('telegram')
+            result = self.server.supervisor.stopProcessGroup(self._group_name or 'telegram')
             logger.info(f"所有服务停止成功: {result}")
             return True
         except xmlrpc.client.Fault as e:
