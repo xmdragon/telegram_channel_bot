@@ -498,18 +498,9 @@ class MessageForwarder:
         if not listener_client:
             raise RuntimeError("采集客户端不可用")
 
-        # 转换频道ID: -100前缀需要去掉才能用于PeerChannel
-        channel_id = int(source_channel_id)
-        if channel_id < 0:
-            channel_id = int(str(source_channel_id).replace('-100', '', 1))
-
-        from telethon.tl.types import PeerChannel
-        try:
-            entity = await listener_client.get_entity(PeerChannel(channel_id))
-        except Exception:
-            entity = await listener_client.get_entity(int(source_channel_id))
-
-        messages = await listener_client.get_messages(entity, ids=[int(message_id)])
+        # Telethon的get_messages直接接受带-100前缀的int ID，无需解析entity
+        peer_id = int(source_channel_id)
+        messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
         if not messages or not messages[0]:
             raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
 
