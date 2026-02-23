@@ -228,7 +228,7 @@ do_deploy() {
     else
         # 增量打包
         local archive="/tmp/tcb-incremental-${TIMESTAMP}.tar.gz"
-        echo "$changed_files" | git archive HEAD --files-from=- | gzip > "$archive"
+        git archive HEAD -- $changed_files | gzip > "$archive"
         local size
         size=$(du -h "$archive" | cut -f1)
         log_info "增量包: ${size}"
