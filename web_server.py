@@ -19,15 +19,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 # 🔥 删除StaticFiles导入 - 静态文件由Nginx服务
 
+from dotenv import load_dotenv
+
+# 加载环境变量 - 必须在所有app模块导入之前
+load_dotenv()
+
 from app.core.config import settings
 from app.core.media_paths import media_paths
 from app.core.path_config import PathConfig
 from app.core.route_config import ROUTES
 from app.api import api_router
-from dotenv import load_dotenv
-
-# 加载环境变量
-load_dotenv()
 
 # 使用统一的日志配置
 from app.core.logging_config import setup_logging, get_logger
