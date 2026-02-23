@@ -17,7 +17,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-# 🔥 删除StaticFiles导入 - 静态文件由Nginx服务
 
 from dotenv import load_dotenv
 

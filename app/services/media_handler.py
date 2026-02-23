@@ -311,7 +311,8 @@ class MediaHandler:
                         "file_size": document.size if document.size else 0,
                         "mime_type": mime_type,
                     })
-                    logger.info(f"视频跳过下载，仅保存缩略图 - 消息ID: {message_id}, 大小: {document.size/1024/1024:.1f}MB")
+                    size_mb = (document.size or 0) / 1024 / 1024
+                    logger.info(f"视频跳过下载，仅保存缩略图 - 消息ID: {message_id}, 大小: {size_mb:.1f}MB")
                     return media_info
 
                 elif mime_type.startswith("image/"):
@@ -346,8 +347,8 @@ class MediaHandler:
                 file_path = self.temp_dir / file_name
                 
                 # 检查文件大小限制
-                if document.size > self.max_download_size:
-                    logger.warning(f"文件太大，跳过下载: {document.size/1024/1024:.1f}MB > {self.max_download_size/1024/1024:.1f}MB")
+                if (document.size or 0) > self.max_download_size:
+                    logger.warning(f"文件太大，跳过下载: {(document.size or 0)/1024/1024:.1f}MB > {self.max_download_size/1024/1024:.1f}MB")
                     return None
                 
                 # 下载文档

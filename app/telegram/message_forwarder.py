@@ -20,37 +20,46 @@ logger = logging.getLogger(__name__)
 
 class StandardMessage:
     """统一消息类 - 消除MessageWrapper灾难"""
-    
+
+    _DEFAULTS = {
+        'removed_hidden_links': [],
+        'is_combined': False,
+        'media_group_display': None,
+        'media_url': None,
+        'media_type': None,
+        'media_path': None,
+        'target_message_id': None,
+        'forwarded_time': None,
+    }
+
     def __init__(self, data: Union[Dict, Any]):
         """接受字典或对象，提供统一接口"""
-        if isinstance(data, dict):
-            self._data = data
-            self._is_dict = True
-        else:
-            self._data = data
-            self._is_dict = False
-    
+        # 用 object.__setattr__ 避免触发自定义 __setattr__
+        object.__setattr__(self, '_data', data)
+        object.__setattr__(self, '_is_dict', isinstance(data, dict))
+
     def __getattr__(self, name: str) -> Any:
         """统一属性访问"""
+        if name.startswith('_'):
+            raise AttributeError(name)
         if self._is_dict:
             if name in self._data:
                 return self._data[name]
-            # 提供标准默认值
-            defaults = {
-                'removed_hidden_links': [],
-                'is_combined': False,
-                'media_group_display': None,
-                'media_url': None,
-                'media_type': None,
-                'media_path': None,
-                'target_message_id': None,
-                'forwarded_time': None,
-                'id': f"{self._data.get('source_channel')}:{self._data.get('message_id')}"
-            }
-            return defaults.get(name)
+            if name == 'id':
+                return f"{self._data.get('source_channel')}:{self._data.get('message_id')}"
+            return self._DEFAULTS.get(name)
         else:
             return getattr(self._data, name, None)
-    
+
+    def __setattr__(self, name: str, value: Any):
+        """属性设置同步到底层数据"""
+        if name.startswith('_'):
+            object.__setattr__(self, name, value)
+        elif self._is_dict:
+            self._data[name] = value
+        else:
+            setattr(self._data, name, value)
+
     def get(self, key: str, default: Any = None) -> Any:
         """字典式访问"""
         if self._is_dict:
@@ -143,8 +152,7 @@ class MessageForwarder:
                 send_attempted = True
             elif media_type and (
                 (actual_media_path and os.path.exists(actual_media_path)) or
-                (not (actual_media_path and os.path.exists(actual_media_path))
-                 and message.get('source_channel') and message.get('message_id'))
+                (message.get('source_channel') and message.get('message_id'))
             ):
                 # 发送单个媒体消息（本地文件或远程引用）
                 sent_message = await self._send_single_media_message_with_retry(client, target_entity, message, message_type)
@@ -178,7 +186,7 @@ class MessageForwarder:
                     target_msg_id = sent_message.id
 
                 # 如果是字典类型，更新Redis中的记录
-                if isinstance(message.data if hasattr(message, 'data') else message, dict):
+                if message._is_dict:
                     try:
                         from app.storage.redis_manager import redis_manager
                         redis_store = redis_manager
@@ -465,6 +473,8 @@ class MessageForwarder:
                 # 从源频道获取原消息媒体（视频等未下载的文件）
                 source_channel = message.get('source_channel')
                 msg_id = message.get('message_id')
+                if not source_channel or not msg_id:
+                    raise RuntimeError(f"媒体文件不存在且缺少远程引用信息: source_channel={source_channel}, message_id={msg_id}")
                 file_to_send = await self._fetch_source_media(source_channel, msg_id)
                 logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
@@ -515,8 +525,7 @@ class MessageForwarder:
             超时时间（秒）
         """
         try:
-            from app.services.config_manager import ConfigManager
-            config_manager = ConfigManager()
+            from app.services.config_manager import config_manager
             timeout = await config_manager.get_config('processor.send_message_timeout', 120)
             return int(timeout)
         except Exception as e:

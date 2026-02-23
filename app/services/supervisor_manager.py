@@ -102,6 +102,7 @@ class SupervisorManager:
     def get_service_status(self, service_name: str) -> Optional[Dict[str, Any]]:
         """获取单个服务状态"""
         full_name = SupervisorConfig.get_service_name(service_name)
+        full_name = self._get_grouped_name(full_name)
 
         if not self.server:
             return None
