@@ -278,33 +278,42 @@ class MediaHandler:
             elif isinstance(message.media, MessageMediaDocument):
                 # 处理文档/视频/动图/音频等
                 document = message.media.document
-                
+
                 # 确定文件类型和扩展名
                 mime_type = document.mime_type or "application/octet-stream"
                 if mime_type.startswith("video/"):
                     media_info["media_type"] = "video"
-                    extension = ".mp4"
+                    media_info["skip_download"] = True  # 标记跳过视频文件下载
 
-                    # 尝试下载视频缩略图 - 使用Telethon的thumb参数
+                    # 仍然下载视频缩略图用于前端预览
                     try:
                         thumb_file_name = f"{file_prefix}_video_thumb.jpg"
                         thumb_path = self.temp_dir / thumb_file_name
 
-                        # 使用thumb=-1参数下载缩略图
                         downloaded_thumb = await client.download_media(
                             message,
-                            thumb=-1,  # -1表示下载缩略图
+                            thumb=-1,
                             file=str(thumb_path)
                         )
 
                         if downloaded_thumb and thumb_path.exists():
-                            file_size = thumb_path.stat().st_size
                             media_info["thumbnail_path"] = str(thumb_path)
                             media_info["thumbnail_url"] = f"/temp_media/{thumb_file_name}"
                             logger.debug(f"视频缩略图已保存: {thumb_file_name}")
 
                     except Exception as e:
                         logger.warning(f"下载视频缩略图失败 - 消息ID: {message_id}: {e}")
+
+                    # 跳过视频文件下载，转发时直接引用源频道消息
+                    media_info.update({
+                        "file_path": None,
+                        "file_name": None,
+                        "file_size": document.size if document.size else 0,
+                        "mime_type": mime_type,
+                    })
+                    logger.info(f"视频跳过下载，仅保存缩略图 - 消息ID: {message_id}, 大小: {document.size/1024/1024:.1f}MB")
+                    return media_info
+
                 elif mime_type.startswith("image/"):
                     if "gif" in mime_type:
                         media_info["media_type"] = "animation"

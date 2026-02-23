@@ -12,7 +12,7 @@ set -euo pipefail
 # ============================================================
 REMOTE="tcb"
 REMOTE_DIR="/opt/tcb"
-DEPLOY_BRANCH="worktree-sqlite-migration"
+DEPLOY_BRANCH="main"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEPLOY_COMMIT_FILE="$PROJECT_DIR/.deploy_commit"

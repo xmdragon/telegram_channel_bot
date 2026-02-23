@@ -86,6 +86,14 @@ class MessageForwarder:
                 logger.error("未配置目标频道ID")
                 return None
 
+            # 解析目标频道实体（避免PeerChannel找不到的错误）
+            try:
+                from telethon.tl.types import PeerChannel
+                target_entity = await client.get_entity(PeerChannel(int(target_channel_id)))
+            except Exception as e:
+                logger.warning(f"通过PeerChannel解析失败: {e}，尝试直接解析ID")
+                target_entity = await client.get_entity(int(target_channel_id))
+
             # 🚀 智能限流控制 - 根据消息类型等待
             message_type = self._get_message_type(message)
             wait_time = await rate_limiter.wait_if_needed(message_type, target_channel_id)
@@ -131,11 +139,15 @@ class MessageForwarder:
             # 🚀 发送消息并处理FloodWait
             if is_combined and media_group:
                 # 发送组合消息（媒体组）
-                sent_message = await self._send_combined_message_with_retry(client, target_channel_id, message, message_type)
+                sent_message = await self._send_combined_message_with_retry(client, target_entity, message, message_type)
                 send_attempted = True
-            elif media_type and actual_media_path and os.path.exists(actual_media_path):
-                # 发送单个媒体消息
-                sent_message = await self._send_single_media_message_with_retry(client, target_channel_id, message, message_type)
+            elif media_type and (
+                (actual_media_path and os.path.exists(actual_media_path)) or
+                (not (actual_media_path and os.path.exists(actual_media_path))
+                 and message.get('source_channel') and message.get('message_id'))
+            ):
+                # 发送单个媒体消息（本地文件或远程引用）
+                sent_message = await self._send_single_media_message_with_retry(client, target_entity, message, message_type)
                 send_attempted = True
             else:
                 # 发送纯文本消息（不包含隐藏链接实体）
@@ -149,7 +161,7 @@ class MessageForwarder:
 
                 # 发送文本消息（带FloodWait处理）
                 sent_message = await self._send_text_message_with_retry(
-                    client, target_channel_id, content_with_footer, clean_entities, message_type
+                    client, target_entity, content_with_footer, clean_entities, message_type
                 )
                 send_attempted = True
             
@@ -363,19 +375,26 @@ class MessageForwarder:
             # 添加频道落款
             caption_text = await self._add_channel_footer(caption_text)
             
-            # 准备媒体文件列表
+            # 准备媒体文件列表（支持本地文件和远程引用混合）
+            source_channel = message.get('source_channel')
             for media_item in message.media_group_display:
-                file_path = media_item['file_path']
+                file_path = media_item.get('file_path')
                 # 处理媒体文件路径
                 if file_path and file_path.startswith('/temp_media/'):
                     from app.core.path_config import PathConfig
                     file_path = str(PathConfig.ROOT_DIR / file_path.lstrip('/'))
-                    logger.debug(f"组媒体路径转换: {media_item['file_path']} -> {file_path}")
 
-                if os.path.exists(file_path):
+                if file_path and os.path.exists(file_path):
                     media_files.append(file_path)
+                elif source_channel and media_item.get('message_id'):
+                    # 本地文件不存在，从源频道获取媒体引用（视频等）
+                    media_obj = await self._fetch_source_media(
+                        source_channel, media_item['message_id']
+                    )
+                    media_files.append(media_obj)
+                    logger.info(f"组媒体使用远程引用: {source_channel}:{media_item['message_id']}")
                 else:
-                    logger.warning(f"媒体文件不存在: {file_path}")
+                    logger.warning(f"媒体文件不可用: {file_path}")
             
             if not media_files:
                 logger.warning("组合消息中没有可用的媒体文件，发送纯文本")
@@ -383,7 +402,7 @@ class MessageForwarder:
                 timeout = await self._get_file_timeout()
                 return await asyncio.wait_for(
                     client.send_message(
-                        entity=int(target_channel_id),
+                        entity=target_channel_id,
                         message=caption_text
                     ),
                     timeout=timeout
@@ -395,7 +414,7 @@ class MessageForwarder:
                 timeout = await self._get_file_timeout(media_files[0])
                 return await asyncio.wait_for(
                     client.send_file(
-                        entity=int(target_channel_id),
+                        entity=target_channel_id,
                         file=media_files[0],
                         caption=caption_text
                     ),
@@ -406,7 +425,7 @@ class MessageForwarder:
                 timeout = await self._get_file_timeout()
                 return await asyncio.wait_for(
                     client.send_file(
-                        entity=int(target_channel_id),
+                        entity=target_channel_id,
                         file=media_files,
                         caption=caption_text
                     ),
@@ -419,19 +438,16 @@ class MessageForwarder:
             raise
     
     async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
-        """发送单个媒体消息"""
+        """发送单个媒体消息（支持本地文件和远程引用）"""
         try:
-            # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
             caption_text = message.filtered_content or message.content
 
-            # 🔍 检查加上落款后的caption长度
             is_valid, excess = await self._check_caption_length(caption_text, with_footer=True)
             if not is_valid:
                 error_msg = f"媒体消息发布失败：内容加落款后超过1024字符限制（超出{excess}字符）"
                 logger.warning(error_msg)
-                # 不直接抛出异常，而是让上层处理
                 raise ValueError(error_msg)
-            
+
             caption_with_footer = await self._add_channel_footer(caption_text)
 
             # 处理媒体文件路径
@@ -439,22 +455,54 @@ class MessageForwarder:
             if file_path and file_path.startswith('/temp_media/'):
                 from app.core.path_config import PathConfig
                 file_path = str(PathConfig.ROOT_DIR / file_path.lstrip('/'))
-                logger.debug(f"单媒体路径转换: {message.media_url} -> {file_path}")
 
-            # 获取超时配置
-            timeout = await self._get_file_timeout(file_path)
+            # 判断是否需要从源频道获取媒体引用
+            use_local_file = file_path and os.path.exists(file_path)
+
+            if use_local_file:
+                file_to_send = file_path
+            else:
+                # 从源频道获取原消息媒体（视频等未下载的文件）
+                source_channel = message.get('source_channel')
+                msg_id = message.get('message_id')
+                file_to_send = await self._fetch_source_media(source_channel, msg_id)
+                logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
+
+            timeout = await self._get_file_timeout()
             return await asyncio.wait_for(
                 client.send_file(
-                    entity=int(target_channel_id),
-                    file=file_path,
+                    entity=target_channel_id,
+                    file=file_to_send,
                     caption=caption_with_footer
                 ),
                 timeout=timeout
             )
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
-            # 不降级，直接抛出异常让上层处理
             raise
+
+    async def _fetch_source_media(self, source_channel_id, message_id):
+        """从源频道获取原消息的媒体对象（用于视频等未下载的文件转发）"""
+        from app.telegram.dual_session_manager import dual_session_manager
+        listener_client = await dual_session_manager.get_listener_client()
+        if not listener_client:
+            raise RuntimeError("采集客户端不可用")
+
+        from telethon.tl.types import PeerChannel
+        try:
+            entity = await listener_client.get_entity(PeerChannel(int(source_channel_id)))
+        except Exception:
+            entity = await listener_client.get_entity(int(source_channel_id))
+
+        messages = await listener_client.get_messages(entity, ids=[int(message_id)])
+        if not messages or not messages[0]:
+            raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
+
+        original_msg = messages[0]
+        if not original_msg.media:
+            raise RuntimeError(f"原消息无媒体: {source_channel_id}:{message_id}")
+
+        return original_msg.media
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """
@@ -506,7 +554,7 @@ class MessageForwarder:
             timeout = await self._get_file_timeout()
             return await asyncio.wait_for(
                 client.send_message(
-                    entity=int(target_channel_id),
+                    entity=target_channel_id,
                     message=content,
                     formatting_entities=entities
                 ),
