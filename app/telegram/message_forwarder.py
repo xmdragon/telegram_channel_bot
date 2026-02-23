@@ -98,13 +98,25 @@ class MessageForwarder:
                 logger.error("未配置目标频道ID")
                 return None
 
-            # 解析目标频道实体（避免PeerChannel找不到的错误）
-            try:
-                from telethon.tl.types import PeerChannel
-                target_entity = await client.get_entity(PeerChannel(int(target_channel_id)))
-            except Exception as e:
-                logger.warning(f"通过PeerChannel解析失败: {e}，尝试直接解析ID")
-                target_entity = await client.get_entity(int(target_channel_id))
+            # 解析目标频道实体 — 优先用username，兜底用ID
+            target_entity = None
+            target_channel_link = await config_manager.get_config('target.channel_link')
+            if target_channel_link:
+                try:
+                    target_entity = await client.get_entity(target_channel_link)
+                except Exception as e:
+                    logger.warning(f"通过频道链接解析失败: {e}")
+
+            if not target_entity:
+                try:
+                    from telethon.tl.types import PeerChannel
+                    channel_id = int(target_channel_id)
+                    if channel_id < 0:
+                        channel_id = int(str(target_channel_id).replace('-100', '', 1))
+                    target_entity = await client.get_entity(PeerChannel(channel_id))
+                except Exception as e:
+                    logger.warning(f"通过PeerChannel解析失败: {e}，尝试直接解析ID")
+                    target_entity = await client.get_entity(int(target_channel_id))
 
             # 🚀 智能限流控制 - 根据消息类型等待
             message_type = self._get_message_type(message)
