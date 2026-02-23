@@ -62,7 +62,7 @@ async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends
 
         if result:
             # 获取刚添加的频道信息
-            channels = await channel_manager.list_channels()
+            channels = await channel_manager.get_all_channels()
             added_channel = next((ch for ch in channels if ch.get('channel_id') == request.channel_id), None)
 
             return {
