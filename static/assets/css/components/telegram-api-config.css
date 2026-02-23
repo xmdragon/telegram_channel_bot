@@ -91,7 +91,7 @@
 
 .api-config-form .form-input:focus {
     outline: none;
-    border-color: var(--primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
 }
 
@@ -109,12 +109,12 @@
 
 .btn-outline-primary {
     background: transparent;
-    border: 1px solid var(--primary);
-    color: var(--primary);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
 }
 
 .btn-outline-primary:hover {
-    background: var(--primary);
+    background: var(--primary-color);
     color: white;
 }
 
@@ -160,7 +160,7 @@
 }
 
 .api-hint a {
-    color: var(--primary);
+    color: var(--primary-color);
     text-decoration: none;
 }
 

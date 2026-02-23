@@ -159,15 +159,27 @@
                             v-model="channelSearchFilter"
                             placeholder="🔍 搜索频道名称或标题...">
                     </div>
-                    <span class="channel-count">
-                        共 {{ filteredChannels.length }} / {{ channels.length }} 个频道
-                    </span>
+                    <div class="toolbar-right">
+                        <button v-if="selectedChannels.length > 0"
+                                class="btn btn-danger btn-sm"
+                                @click="batchRemoveChannels">
+                            🗑️ 删除选中 ({{ selectedChannels.length }})
+                        </button>
+                        <span class="channel-count">
+                            共 {{ filteredChannels.length }} / {{ channels.length }} 个频道
+                        </span>
+                    </div>
                 </div>
 
                 <div class="channel-table-wrapper">
                     <table class="channel-table">
                         <thead>
                             <tr>
+                                <th class="col-checkbox">
+                                    <input type="checkbox"
+                                           :checked="isAllSelected"
+                                           @change="toggleSelectAll">
+                                </th>
                                 <th class="sortable" @click="sortChannels('channel_title')">
                                     标题
                                     <span class="sort-icon" :class="getSortIcon('channel_title')">
@@ -204,7 +216,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="channel in sortedChannels" :key="channel.id">
+                            <tr v-for="channel in sortedChannels" :key="channel.id"
+                                :class="{ 'row-selected': selectedChannels.includes(channel.id) }">
+                                <td class="col-checkbox">
+                                    <input type="checkbox"
+                                           :value="channel.id"
+                                           v-model="selectedChannels">
+                                </td>
                                 <td>
                                     <a v-if="channel.channel_name"
                                        :href="'https://t.me/' + channel.channel_name.replace('@', '')"
@@ -240,7 +258,7 @@
                                 </td>
                             </tr>
                             <tr v-if="sortedChannels.length === 0">
-                                <td colspan="5" class="empty-row">暂无频道数据</td>
+                                <td colspan="6" class="empty-row">暂无频道数据</td>
                             </tr>
                         </tbody>
                     </table>

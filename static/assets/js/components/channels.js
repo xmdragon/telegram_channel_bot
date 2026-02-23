@@ -39,7 +39,10 @@ const ChannelApp = {
 
             // 排序相关
             sortField: 'last_sync_time', // 默认按最后更新时间排序
-            sortOrder: 'desc' // 默认降序
+            sortOrder: 'desc', // 默认降序
+
+            // 批量选择
+            selectedChannels: []
         }
     },
 
@@ -56,6 +59,12 @@ const ChannelApp = {
                 const id = (channel.channel_id || '').toLowerCase();
                 return title.includes(filter) || name.includes(filter) || id.includes(filter);
             });
+        },
+
+        // 是否全选
+        isAllSelected() {
+            return this.sortedChannels.length > 0 &&
+                   this.sortedChannels.every(ch => this.selectedChannels.includes(ch.id));
         },
 
         // 排序后的频道列表
@@ -101,6 +110,7 @@ const ChannelApp = {
                 const response = await axios.get(API.channels.list);
                 if (response.data.success) {
                     this.channels = response.data.channels;
+                    this.selectedChannels = [];
                 }
             } catch (error) {
                 console.error('加载频道列表失败:', error);
@@ -180,6 +190,51 @@ const ChannelApp = {
                 MessageManager.error('批量添加失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.batchChannel.loading = false;
+            }
+        },
+
+        // 全选/取消全选
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedChannels = this.sortedChannels.map(ch => ch.id);
+            } else {
+                this.selectedChannels = [];
+            }
+        },
+
+        // 批量删除频道
+        async batchRemoveChannels() {
+            const count = this.selectedChannels.length;
+            try {
+                const confirmed = await SimpleUI.confirm(
+                    `确定要删除选中的 ${count} 个频道吗？`, '批量删除确认'
+                );
+                if (!confirmed) return;
+
+                let successCount = 0;
+                let failCount = 0;
+                for (const channelId of [...this.selectedChannels]) {
+                    try {
+                        const response = await axios.delete(API.channels.delete(channelId));
+                        if (response.data.success) successCount++;
+                        else failCount++;
+                    } catch {
+                        failCount++;
+                    }
+                }
+
+                this.selectedChannels = [];
+                await this.loadChannels();
+
+                if (failCount === 0) {
+                    MessageManager.success(`成功删除 ${successCount} 个频道`);
+                } else {
+                    MessageManager.warning(`删除完成：成功 ${successCount}，失败 ${failCount}`);
+                }
+            } catch (error) {
+                if (error !== 'cancel') {
+                    MessageManager.error('批量删除失败: ' + error.message);
+                }
             }
         },
 
