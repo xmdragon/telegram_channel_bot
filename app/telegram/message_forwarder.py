@@ -90,33 +90,10 @@ class MessageForwarder:
             # ✅ 优化：使用统一消息类，消除运行时类定义
             message = StandardMessage(message)
 
-            # 获取目标频道ID（从配置）
+            # 获取目标频道实体 — 有缓存ID直接用，否则从链接解析并缓存
             from app.services.config_manager import config_manager
-            target_channel_id = await config_manager.get_config('target.channel_id')
-
-            if not target_channel_id:
-                logger.error("未配置目标频道ID")
-                return None
-
-            # 解析目标频道实体 — 优先用username，兜底用ID
-            target_entity = None
-            target_channel_link = await config_manager.get_config('target.channel_link')
-            if target_channel_link:
-                try:
-                    target_entity = await client.get_entity(target_channel_link)
-                except Exception as e:
-                    logger.warning(f"通过频道链接解析失败: {e}")
-
-            if not target_entity:
-                try:
-                    from telethon.tl.types import PeerChannel
-                    channel_id = int(target_channel_id)
-                    if channel_id < 0:
-                        channel_id = int(str(target_channel_id).replace('-100', '', 1))
-                    target_entity = await client.get_entity(PeerChannel(channel_id))
-                except Exception as e:
-                    logger.warning(f"通过PeerChannel解析失败: {e}，尝试直接解析ID")
-                    target_entity = await client.get_entity(int(target_channel_id))
+            target_entity = await self._resolve_target_entity(client, config_manager)
+            target_channel_id = f"-100{target_entity.id}"
 
             # 🚀 智能限流控制 - 根据消息类型等待
             message_type = self._get_message_type(message)
@@ -502,6 +479,36 @@ class MessageForwarder:
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
             raise
+
+    async def _resolve_target_entity(self, client, config_manager):
+        """解析目标频道实体，优先用已缓存的ID，失败则从链接解析并回写ID"""
+        from telethon.tl.types import PeerChannel
+
+        target_channel_id = await config_manager.get_config('target.channel_id')
+
+        # 尝试用已有ID直接解析
+        if target_channel_id:
+            try:
+                channel_id = int(target_channel_id)
+                if channel_id < 0:
+                    channel_id = int(str(target_channel_id).replace('-100', '', 1))
+                return await client.get_entity(PeerChannel(channel_id))
+            except Exception:
+                logger.warning(f"缓存的目标频道ID解析失败: {target_channel_id}，尝试从链接解析")
+
+        # ID不存在或解析失败，从频道链接解析
+        target_channel_link = await config_manager.get_config('target.channel_link')
+        if not target_channel_link:
+            raise RuntimeError("未配置目标频道ID和频道链接，无法发送")
+
+        entity = await client.get_entity(target_channel_link)
+
+        # 回写解析到的ID到配置，后续不再需要解析
+        resolved_id = f"-100{entity.id}"
+        await config_manager.set_config('target.channel_id', resolved_id)
+        logger.info(f"目标频道ID已缓存: {target_channel_link} -> {resolved_id}")
+
+        return entity
 
     async def _fetch_source_media(self, source_channel_id, message_id):
         """从源频道获取原消息的媒体对象（用于视频等未下载的文件转发）"""
