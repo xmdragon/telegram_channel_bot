@@ -94,6 +94,7 @@ class MessageForwarder:
             from app.services.config_manager import config_manager
             target_entity = await self._resolve_target_entity(client, config_manager)
             target_channel_id = f"-100{target_entity.id}"
+            logger.info(f"目标频道已解析: entity.id={target_entity.id}, target_channel_id={target_channel_id}")
 
             # 🚀 智能限流控制 - 根据消息类型等待
             message_type = self._get_message_type(message)
@@ -406,6 +407,7 @@ class MessageForwarder:
                 )
             
             # 发送媒体组
+            logger.info(f"send_file(组合): entity={target_channel_id}, files={[type(f).__name__ + ':' + str(f)[:60] for f in media_files]}")
             if len(media_files) == 1:
                 # 获取超时配置
                 timeout = await self._get_file_timeout(media_files[0])
@@ -467,6 +469,7 @@ class MessageForwarder:
                 file_to_send = await self._fetch_source_media(source_channel, msg_id)
                 logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
+            logger.info(f"send_file: entity={target_channel_id}, file_type={type(file_to_send).__name__}, file={str(file_to_send)[:100]}")
             timeout = await self._get_file_timeout()
             return await asyncio.wait_for(
                 client.send_file(
