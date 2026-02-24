@@ -225,14 +225,16 @@ class AutoForwarder:
             offset = 0
             max_batches = 20  # 最多检查1000条
 
-            for _ in range(max_batches):
+            for batch_idx in range(max_batches):
                 pending_messages = redis_manager.get_messages_by_status(
                     'pending', limit=batch_size, offset=offset, reverse=False
                 )
 
                 if not pending_messages:
+                    logger.info(f"[DEBUG] 批次{batch_idx}: 无pending消息, cutoff={cutoff_time}")
                     return None
 
+                logger.info(f"[DEBUG] 批次{batch_idx}: {len(pending_messages)} 条, 首条: {pending_messages[0].get('source_channel')}:{pending_messages[0].get('message_id')}, created_at={pending_messages[0].get('created_at')}")
                 for msg in pending_messages:
                     # 跳过已标记失败的消息（除非需要重试）
                     if msg.get('auto_forward_failed') and not msg.get('needs_retry'):
