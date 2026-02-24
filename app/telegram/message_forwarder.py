@@ -454,12 +454,17 @@ class MessageForwarder:
             else:
                 # 从源频道获取媒体引用，用listener_client同session发送（无需下载）
                 source_channel = message.get('source_channel')
-                msg_id = message.get('message_id')
+                # 评论区视频用comment_message_id，普通消息用message_id
+                comment_msg_id = message.get('comment_message_id')
+                msg_id = comment_msg_id or message.get('message_id')
                 username = message.get('source_channel_username')
                 if not source_channel or not msg_id:
                     raise RuntimeError(f"媒体文件不存在且缺少远程引用信息: source_channel={source_channel}, message_id={msg_id}")
                 send_client, file_to_send, send_entity = await self._fetch_source_media(source_channel, msg_id, username=username)
-                logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
+                if comment_msg_id:
+                    logger.info(f"使用评论区媒体引用: {source_channel}:{comment_msg_id}")
+                else:
+                    logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
             timeout = await self._get_file_timeout()
             return await asyncio.wait_for(

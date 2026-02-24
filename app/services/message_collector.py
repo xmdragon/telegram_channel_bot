@@ -71,6 +71,9 @@ class LocalMessage:
     source_channel_title: Optional[str] = None
     source_channel_username: Optional[str] = None
     
+    # 评论区视频字段
+    comment_message_id: Optional[int] = None  # 评论区视频的消息ID（用于媒体引用转发）
+
     # 扩展字段
     details: Optional[Dict] = None
     entities: Optional[List] = None
@@ -856,6 +859,7 @@ class TelegramMessageCollector:
 
             # 评论区视频关键词检查（必须在video_only之前，因为原帖可能只是引导文字没有视频）
             comment_matched = False
+            comment_msg_id = None  # 评论消息ID（用于媒体引用转发）
             comment_keywords = await self.config_manager.get_comment_keywords()
             if comment_keywords:
                 text = (message.message or "").strip()
@@ -866,6 +870,7 @@ class TelegramMessageCollector:
                     )
                     if comment_msg is None:
                         return None
+                    comment_msg_id = comment_msg.id  # 保存评论消息ID
                     message = comment_msg
                     message._original_msg_id = original_msg_id
                     comment_matched = True
@@ -883,14 +888,27 @@ class TelegramMessageCollector:
                     return None
 
             # 下载媒体（如果有）
+            # 评论区命中的视频跳过下载，转发时用媒体引用
             media_info = None
-            if message.media:
+            if comment_matched and message.media:
+                # 评论区视频：不下载，只记录媒体类型信息
+                from telethon.tl.types import MessageMediaDocument as MMD
+                if isinstance(message.media, MMD):
+                    doc = message.media.document
+                    mime = doc.mime_type or '' if doc else ''
+                    media_info = {
+                        'media_type': 'video' if mime.startswith('video/') else 'document',
+                        'file_path': None,  # 无本地文件，转发时用引用
+                        'thumbnail_url': None,
+                    }
+                    logger.info(f"评论区视频跳过下载，将用媒体引用转发: {message.id}")
+            elif message.media:
                 from app.services.media_handler import MediaHandler
                 media_handler = MediaHandler()
                 media_info = await media_handler.download_media_with_retry(
                     self.telethon_client, message, message.id
                 )
-            
+
             # 创建LocalMessage（评论替换时保留原帖ID）
             effective_msg_id = getattr(message, '_original_msg_id', message.id)
             return LocalMessage(
@@ -906,7 +924,7 @@ class TelegramMessageCollector:
                 thumbnail_url=media_info.get('thumbnail_url') if media_info else None,
                 is_combined=False,  # 单条消息不是组合消息
                 timestamp=message.date,
-                # status="pending" - 移除硬编码，使用LocalMessage的默认值
+                comment_message_id=comment_msg_id,  # 评论区视频的消息ID
                 source_channel=channel_id,
                 source_channel_title=channel.get('channel_name', channel.get('channel_title')),
                 source_channel_username=channel.get('channel_username'),
