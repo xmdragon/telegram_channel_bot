@@ -854,19 +854,8 @@ class TelegramMessageCollector:
                             logger.warning(f"消息 {message.id} 图片文件超过限制 {max_media_size_mb}MB，跳过该消息")
                             return None
 
-            # 仅采集视频消息过滤
-            if await self.config_manager.get_video_only():
-                has_video = False
-                if message.media:
-                    from telethon.tl.types import MessageMediaDocument as MMD
-                    if isinstance(message.media, MMD):
-                        doc = message.media.document
-                        if doc and (doc.mime_type or '').startswith('video/'):
-                            has_video = True
-                if not has_video:
-                    return None
-
-            # 评论区视频关键词检查
+            # 评论区视频关键词检查（必须在video_only之前，因为原帖可能只是引导文字没有视频）
+            comment_matched = False
             comment_keywords = await self.config_manager.get_comment_keywords()
             if comment_keywords:
                 text = (message.message or "").strip()
@@ -878,8 +867,20 @@ class TelegramMessageCollector:
                     if comment_msg is None:
                         return None
                     message = comment_msg
-                    # 保留原帖的message_id用于checkpoint和去重
                     message._original_msg_id = original_msg_id
+                    comment_matched = True
+
+            # 仅采集视频消息过滤（评论区命中的已经是视频，跳过检查）
+            if not comment_matched and await self.config_manager.get_video_only():
+                has_video = False
+                if message.media:
+                    from telethon.tl.types import MessageMediaDocument as MMD
+                    if isinstance(message.media, MMD):
+                        doc = message.media.document
+                        if doc and (doc.mime_type or '').startswith('video/'):
+                            has_video = True
+                if not has_video:
+                    return None
 
             # 下载媒体（如果有）
             media_info = None
