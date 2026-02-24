@@ -532,7 +532,7 @@ class MessageForwarder:
     _listener_cache_warmed = False  # listener entity cache 预热标记
 
     async def _fetch_source_media(self, source_channel_id, message_id, username=None):
-        """从源频道下载媒体到临时文件，返回本地路径供sender发送"""
+        """从源频道获取媒体引用，直接返回media对象（无需下载）"""
         from app.telegram.dual_session_manager import dual_session_manager
         listener_client = await dual_session_manager.get_listener_client()
         if not listener_client:
@@ -543,7 +543,6 @@ class MessageForwarder:
         try:
             messages = await listener_client.get_messages(peer, ids=[int(message_id)])
         except (ValueError, TypeError):
-            # username 失败则回退到数字 ID
             if username:
                 logger.warning(f"username {username} 解析失败，回退到数字ID {source_channel_id}")
                 messages = await listener_client.get_messages(int(source_channel_id), ids=[int(message_id)])
@@ -556,20 +555,8 @@ class MessageForwarder:
         if not original_msg.media:
             raise RuntimeError(f"原消息无媒体: {source_channel_id}:{message_id}")
 
-        # 用 listener client 下载到临时文件，避免跨 session entity 解析问题
-        from app.core.path_config import PathConfig
-        temp_dir = PathConfig.ROOT_DIR / "temp_media" / "forward_cache"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_path = str(temp_dir / f"{source_channel_id}_{message_id}")
-
-        downloaded = await listener_client.download_media(
-            original_msg, file=temp_path
-        )
-        if not downloaded:
-            raise RuntimeError(f"下载源媒体失败: {source_channel_id}:{message_id}")
-
-        logger.info(f"源媒体已下载到临时文件: {downloaded}")
-        return downloaded
+        logger.info(f"获取媒体引用: {source_channel_id}:{message_id}, type={type(original_msg.media).__name__}")
+        return original_msg.media
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """
