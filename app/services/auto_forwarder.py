@@ -289,8 +289,8 @@ class AutoForwarder:
 
         # 优先用 media_type 判断（skip_download 的视频 media_url 为空）
         media_type = message.get('media_type', '')
-        if media_type == 'video':
-            return base_timeout * 6  # 视频使用6倍超时（720秒）
+        if media_type in ('video', 'group'):
+            return base_timeout * 6  # 视频/组合消息使用6倍超时（720秒）
 
         # 检查是否有媒体
         if not message.get('media_url') and not media_type:
