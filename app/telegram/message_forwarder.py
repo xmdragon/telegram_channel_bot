@@ -408,11 +408,10 @@ class MessageForwarder:
                 )
             
             # 发送媒体组
-            logger.info(f"send_file(组合): entity={target_channel_id}, files={[type(f).__name__ + ':' + str(f)[:60] for f in media_files]}")
+            logger.info(f"send_file(组合): files={[type(f).__name__ + ':' + str(f)[:60] for f in media_files]}")
             if len(media_files) == 1:
-                # 获取超时配置
                 timeout = await self._get_file_timeout(media_files[0])
-                return await asyncio.wait_for(
+                result = await asyncio.wait_for(
                     client.send_file(
                         entity=target_channel_id,
                         file=media_files[0],
@@ -421,9 +420,8 @@ class MessageForwarder:
                     timeout=timeout
                 )
             else:
-                # 获取超时配置
                 timeout = await self._get_file_timeout()
-                return await asyncio.wait_for(
+                result = await asyncio.wait_for(
                     client.send_file(
                         entity=target_channel_id,
                         file=media_files,
@@ -431,10 +429,12 @@ class MessageForwarder:
                     ),
                     timeout=timeout
                 )
-                
+            # 发送成功后清理临时下载文件
+            self._cleanup_temp_files(media_files)
+            return result
+
         except Exception as e:
             logger.error(f"发送组合消息失败: {e}")
-            # 不降级，直接抛出异常让上层处理
             raise
     
     async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
@@ -471,9 +471,9 @@ class MessageForwarder:
                 file_to_send = await self._fetch_source_media(source_channel, msg_id, username=username)
                 logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
-            logger.info(f"send_file: entity={target_channel_id}, file_type={type(file_to_send).__name__}, file={str(file_to_send)[:100]}")
+            logger.info(f"send_file: file_type={type(file_to_send).__name__}, file={str(file_to_send)[:100]}")
             timeout = await self._get_file_timeout()
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 client.send_file(
                     entity=target_channel_id,
                     file=file_to_send,
@@ -481,6 +481,13 @@ class MessageForwarder:
                 ),
                 timeout=timeout
             )
+            # 发送成功后清理临时下载文件
+            if not use_local_file and isinstance(file_to_send, str) and os.path.exists(file_to_send):
+                try:
+                    os.remove(file_to_send)
+                except OSError:
+                    pass
+            return result
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
             raise
@@ -530,6 +537,18 @@ class MessageForwarder:
         return entity
 
     _listener_cache_warmed = False  # listener entity cache 预热标记
+
+    @staticmethod
+    def _cleanup_temp_files(files):
+        """清理转发缓存的临时文件"""
+        from app.core.path_config import PathConfig
+        cache_dir = str(PathConfig.ROOT_DIR / "temp_media" / "forward_cache")
+        for f in (files if isinstance(files, list) else [files]):
+            if isinstance(f, str) and f.startswith(cache_dir) and os.path.exists(f):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
 
     async def _fetch_source_media(self, source_channel_id, message_id, username=None):
         """从源频道下载媒体到临时文件，返回本地路径供sender发送"""
