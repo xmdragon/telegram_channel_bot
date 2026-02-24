@@ -375,9 +375,10 @@ class MessageForwarder:
             
             # 准备媒体文件列表（支持本地文件和远程引用混合）
             source_channel = message.get('source_channel')
+            send_client = client  # 默认用sender，远程引用时切换为listener
+            has_remote = False
             for media_item in message.media_group_display:
                 file_path = media_item.get('file_path')
-                # 处理媒体文件路径
                 if file_path and file_path.startswith('/temp_media/'):
                     from app.core.path_config import PathConfig
                     file_path = str(PathConfig.ROOT_DIR / file_path.lstrip('/'))
@@ -385,19 +386,20 @@ class MessageForwarder:
                 if file_path and os.path.exists(file_path):
                     media_files.append(file_path)
                 elif source_channel and media_item.get('message_id'):
-                    # 本地文件不存在，从源频道获取媒体引用（视频等）
-                    media_obj = await self._fetch_source_media(
+                    # 用listener_client获取媒体引用（同session无需下载）
+                    listener, media_obj = await self._fetch_source_media(
                         source_channel, media_item['message_id'],
                         username=message.get('source_channel_username')
                     )
                     media_files.append(media_obj)
-                    logger.info(f"组媒体使用远程引用: {source_channel}:{media_item['message_id']}")
+                    send_client = listener  # 远程引用必须用listener发送
+                    has_remote = True
+                    logger.info(f"组媒体引用: {source_channel}:{media_item['message_id']}")
                 else:
                     logger.warning(f"媒体文件不可用: {file_path}")
-            
+
             if not media_files:
                 logger.warning("组合消息中没有可用的媒体文件，发送纯文本")
-                # 获取超时配置
                 timeout = await self._get_file_timeout()
                 return await asyncio.wait_for(
                     client.send_message(
@@ -406,31 +408,18 @@ class MessageForwarder:
                     ),
                     timeout=timeout
                 )
-            
-            # 发送媒体组
-            logger.info(f"send_file(组合): files={[type(f).__name__ + ':' + str(f)[:60] for f in media_files]}")
-            if len(media_files) == 1:
-                timeout = await self._get_file_timeout(media_files[0])
-                result = await asyncio.wait_for(
-                    client.send_file(
-                        entity=target_channel_id,
-                        file=media_files[0],
-                        caption=caption_text
-                    ),
-                    timeout=timeout
-                )
-            else:
-                timeout = await self._get_file_timeout()
-                result = await asyncio.wait_for(
-                    client.send_file(
-                        entity=target_channel_id,
-                        file=media_files,
-                        caption=caption_text
-                    ),
-                    timeout=timeout
-                )
-            # 发送成功后清理临时下载文件
-            self._cleanup_temp_files(media_files)
+
+            # 发送媒体组（远程引用用listener，本地文件用sender）
+            timeout = await self._get_file_timeout()
+            file_arg = media_files[0] if len(media_files) == 1 else media_files
+            result = await asyncio.wait_for(
+                send_client.send_file(
+                    entity=target_channel_id,
+                    file=file_arg,
+                    caption=caption_text
+                ),
+                timeout=timeout
+            )
             return result
 
         except Exception as e:
@@ -461,33 +450,26 @@ class MessageForwarder:
 
             if use_local_file:
                 file_to_send = file_path
+                send_client = client
             else:
-                # 从源频道获取原消息媒体（视频等未下载的文件）
+                # 从源频道获取媒体引用，用listener_client同session发送（无需下载）
                 source_channel = message.get('source_channel')
                 msg_id = message.get('message_id')
                 username = message.get('source_channel_username')
                 if not source_channel or not msg_id:
                     raise RuntimeError(f"媒体文件不存在且缺少远程引用信息: source_channel={source_channel}, message_id={msg_id}")
-                file_to_send = await self._fetch_source_media(source_channel, msg_id, username=username)
+                send_client, file_to_send = await self._fetch_source_media(source_channel, msg_id, username=username)
                 logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
-            logger.info(f"send_file: file_type={type(file_to_send).__name__}, file={str(file_to_send)[:100]}")
             timeout = await self._get_file_timeout()
-            result = await asyncio.wait_for(
-                client.send_file(
+            return await asyncio.wait_for(
+                send_client.send_file(
                     entity=target_channel_id,
                     file=file_to_send,
                     caption=caption_with_footer
                 ),
                 timeout=timeout
             )
-            # 发送成功后清理临时下载文件
-            if not use_local_file and isinstance(file_to_send, str) and os.path.exists(file_to_send):
-                try:
-                    os.remove(file_to_send)
-                except OSError:
-                    pass
-            return result
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
             raise
@@ -538,20 +520,8 @@ class MessageForwarder:
 
     _listener_cache_warmed = False  # listener entity cache 预热标记
 
-    @staticmethod
-    def _cleanup_temp_files(files):
-        """清理转发缓存的临时文件"""
-        from app.core.path_config import PathConfig
-        cache_dir = str(PathConfig.ROOT_DIR / "temp_media" / "forward_cache")
-        for f in (files if isinstance(files, list) else [files]):
-            if isinstance(f, str) and f.startswith(cache_dir) and os.path.exists(f):
-                try:
-                    os.remove(f)
-                except OSError:
-                    pass
-
     async def _fetch_source_media(self, source_channel_id, message_id, username=None):
-        """从源频道下载媒体到临时文件，返回本地路径供sender发送"""
+        """从源频道获取媒体引用，返回 (listener_client, media) 元组供同session发送"""
         from app.telegram.dual_session_manager import dual_session_manager
         listener_client = await dual_session_manager.get_listener_client()
         if not listener_client:
@@ -574,20 +544,8 @@ class MessageForwarder:
         if not original_msg.media:
             raise RuntimeError(f"原消息无媒体: {source_channel_id}:{message_id}")
 
-        # 下载到临时文件（跨session无法直接用media对象）
-        from app.core.path_config import PathConfig
-        temp_dir = PathConfig.ROOT_DIR / "temp_media" / "forward_cache"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_path = str(temp_dir / f"{source_channel_id}_{message_id}")
-
-        downloaded = await listener_client.download_media(
-            original_msg, file=temp_path
-        )
-        if not downloaded:
-            raise RuntimeError(f"下载源媒体失败: {source_channel_id}:{message_id}")
-
-        logger.info(f"源媒体已下载到临时文件: {downloaded}")
-        return downloaded
+        logger.info(f"获取媒体引用: {source_channel_id}:{message_id}, type={type(original_msg.media).__name__}")
+        return (listener_client, original_msg.media)
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """
