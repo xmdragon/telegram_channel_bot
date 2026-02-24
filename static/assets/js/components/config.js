@@ -36,6 +36,9 @@ const ConfigApp = {
                 'collection.max_media_size_mb': '200',
                 'collection.max_messages_per_batch': '10',
                 'source.history_limit': '50',
+                'collection.video_only': false,
+                'collection.comment_keywords': [],
+                'collection.comment_keywords_text': '',
 
                 // 去重检测
                 'duplicate_detection.enabled': true,
@@ -90,6 +93,8 @@ const ConfigApp = {
                 'collection.max_media_size_mb': 'integer',
                 'collection.max_messages_per_batch': 'integer',
                 'source.history_limit': 'integer',
+                'collection.video_only': 'boolean',
+                'collection.comment_keywords': 'json',
 
                 // 去重检测
                 'duplicate_detection.enabled': 'boolean',
@@ -178,6 +183,14 @@ const ConfigApp = {
                 return isNaN(num) ? 0 : num;
             }
 
+            if (type === 'json') {
+                if (value === undefined || value === null) return [];
+                if (typeof value === 'string') {
+                    try { return JSON.parse(value); } catch (e) { return []; }
+                }
+                return value;
+            }
+
             // string类型或默认
             return value === undefined || value === null ? '' : String(value);
         },
@@ -234,6 +247,9 @@ const ConfigApp = {
                         // 直接加载所有配置，不限制必须预定义
                         this.configs[key] = this.convertConfigValue(key, value);
                     }
+                    // 评论区关键词：JSON数组转换为换行文本
+                    const kw = this.configs['collection.comment_keywords'];
+                    this.configs['collection.comment_keywords_text'] = Array.isArray(kw) ? kw.join('\n') : '';
                 }
             } catch (error) {
                 console.error('加载配置失败:', error);
@@ -325,9 +341,14 @@ const ConfigApp = {
                     }
                 }
 
+                // 评论区关键词：换行文本转为JSON数组
+                this.configs['collection.comment_keywords'] = (this.configs['collection.comment_keywords_text'] || '')
+                    .split('\n').map(s => s.trim()).filter(s => s);
+
                 // 准备所有配置数据，进行类型转换
                 const configData = {};
                 for (const [key, value] of Object.entries(this.configs)) {
+                    if (key === 'collection.comment_keywords_text') continue;
                     configData[key] = this.convertConfigValue(key, value);
                 }
 

@@ -230,50 +230,40 @@ class MediaHandler:
             }
             
             if isinstance(message.media, MessageMediaPhoto):
-                # 处理图片
+                # 图片：只下载缩略图用于前端预览，转发时引用源频道
                 media_info["media_type"] = "photo"
-                file_name = f"{file_prefix}_photo.jpg"
-                file_path = self.temp_dir / file_name
-                
-                # 🔥 修复：统一超时设置
-                if timeout:
-                    download_timeout = timeout
-                else:
-                    # 统一使用1800秒，图片和大文件一视同仁
-                    download_timeout = 1800.0
+                media_info["skip_download"] = True
+
+                # 获取图片大小（估算）
+                photo = message.media.photo
+                photo_size = 0
+                if photo and hasattr(photo, 'sizes') and photo.sizes:
+                    largest = max(photo.sizes, key=lambda s: getattr(s, 'size', 0) if hasattr(s, 'size') else 0)
+                    photo_size = getattr(largest, 'size', 0)
+
+                # 下载缩略图用于前端预览和媒体去重
                 try:
-                    # 创建进度回调函数
-                    progress_callback = lambda current, total: asyncio.create_task(
-                        self._download_progress_callback(current, total, str(message_id), "photo")
+                    thumb_file_name = f"{file_prefix}_photo_thumb.jpg"
+                    thumb_path = self.temp_dir / thumb_file_name
+                    downloaded_thumb = await client.download_media(
+                        message, thumb=-1, file=str(thumb_path)
                     )
-                    
-                    await asyncio.wait_for(
-                        client.download_media(
-                            message.media, 
-                            file_path,
-                            progress_callback=progress_callback
-                        ),
-                        timeout=download_timeout
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning(f"下载图片超时（{download_timeout}秒）: {file_name}")
-                    # 检查文件是否实际已经下载完成
-                    if file_path.exists() and file_path.stat().st_size > 0:
-                        logger.debug(f"✅ 虽然超时，但图片下载完成: {file_name} ({file_path.stat().st_size} bytes)")
-                    else:
-                        logger.error(f"❌ 图片下载真正失败，文件不存在: {file_name}")
-                        return None
-                
-                # 🔥 修复：下载功能保持简单，不做额外处理
+                    if downloaded_thumb and thumb_path.exists():
+                        media_info["thumbnail_path"] = str(thumb_path)
+                        media_info["thumbnail_url"] = f"/temp_media/{thumb_file_name}"
+                        logger.debug(f"图片缩略图已保存: {thumb_file_name}")
+                except Exception as e:
+                    logger.warning(f"下载图片缩略图失败 - 消息ID: {message_id}: {e}")
+
+                # file_path 设为 None，转发时走引用路径
                 media_info.update({
-                    "file_path": f"temp_media/{file_name}",
-                    "file_name": file_name,
-                    "file_size": file_path.stat().st_size if file_path.exists() else 0,
-                    "mime_type": "image/jpeg"
+                    "file_path": None,
+                    "file_name": None,
+                    "file_size": photo_size,
+                    "mime_type": "image/jpeg",
                 })
-                
-                logger.debug(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
-                return media_info  # 🔥 关键修复：添加缺少的return语句
+                logger.debug(f"图片跳过下载，仅保存缩略图 - 消息ID: {message_id}")
+                return media_info
                 
             elif isinstance(message.media, MessageMediaDocument):
                 # 处理文档/视频/动图/音频等
@@ -318,75 +308,39 @@ class MediaHandler:
                 elif mime_type.startswith("image/"):
                     if "gif" in mime_type:
                         media_info["media_type"] = "animation"
-                        extension = ".gif"
                     else:
                         media_info["media_type"] = "photo"
-                        extension = ".jpg"
                 elif mime_type.startswith("audio/"):
                     media_info["media_type"] = "audio"
-                    extension = ".mp3"
                 else:
                     media_info["media_type"] = "document"
-                    extension = ".bin"
-                
-                # 尝试从文档属性获取原始文件名
-                original_name = None
-                for attr in document.attributes:
-                    if hasattr(attr, 'file_name') and attr.file_name:
-                        original_name = attr.file_name
-                        extension = os.path.splitext(original_name)[1] or extension
-                        break
-                
-                # 检查危险文件类型
-                dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar', '.msi', '.dll']
-                if extension.lower() in dangerous_extensions:
-                    logger.warning(f"🚫 检测到危险文件类型: {original_name or extension}，跳过下载")
-                    return None
-                
-                file_name = f"{file_prefix}_{media_info['media_type']}{extension}"
-                file_path = self.temp_dir / file_name
-                
-                # 检查文件大小限制
-                if (document.size or 0) > self.max_download_size:
-                    logger.warning(f"文件太大，跳过下载: {(document.size or 0)/1024/1024:.1f}MB > {self.max_download_size/1024/1024:.1f}MB")
-                    return None
-                
-                # 下载文档
-                download_timeout = timeout if timeout else self.default_timeout
-                
+
+                # 所有非视频文档也跳过下载，转发时引用源频道
+                media_info["skip_download"] = True
+
+                # 下载缩略图用于前端预览和媒体去重
                 try:
-                    # 创建进度回调函数
-                    progress_callback = lambda current, total: asyncio.create_task(
-                        self._download_progress_callback(current, total, str(message_id), media_info["media_type"])
+                    thumb_file_name = f"{file_prefix}_{media_info['media_type']}_thumb.jpg"
+                    thumb_path = self.temp_dir / thumb_file_name
+                    downloaded_thumb = await client.download_media(
+                        message, thumb=-1, file=str(thumb_path)
                     )
-                    
-                    await asyncio.wait_for(
-                        client.download_media(
-                            message.media, 
-                            file_path,
-                            progress_callback=progress_callback
-                        ),
-                        timeout=download_timeout
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning(f"下载{media_info['media_type']}超时（{download_timeout}秒）: {file_name}")
-                    # 检查文件是否实际已经下载完成
-                    if file_path.exists() and file_path.stat().st_size > 0:
-                        logger.debug(f"✅ 虽然超时，但文件下载完成: {file_name} ({file_path.stat().st_size} bytes)")
-                    else:
-                        logger.error(f"❌ 文件下载真正失败: {file_name}")
-                        return None
-                
-                # 更新媒体信息
+                    if downloaded_thumb and thumb_path.exists():
+                        media_info["thumbnail_path"] = str(thumb_path)
+                        media_info["thumbnail_url"] = f"/temp_media/{thumb_file_name}"
+                        logger.debug(f"{media_info['media_type']}缩略图已保存: {thumb_file_name}")
+                except Exception as e:
+                    logger.warning(f"下载{media_info['media_type']}缩略图失败 - 消息ID: {message_id}: {e}")
+
+                # file_path 设为 None，转发时走引用路径
                 media_info.update({
-                    "file_path": f"temp_media/{file_name}",
-                    "file_name": file_name,
-                    "file_size": file_path.stat().st_size if file_path.exists() else 0,
+                    "file_path": None,
+                    "file_name": None,
+                    "file_size": document.size if document.size else 0,
                     "mime_type": mime_type,
-                    "original_name": original_name
                 })
-                
-                logger.debug(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")
+                size_mb = (document.size or 0) / 1024 / 1024
+                logger.debug(f"{media_info['media_type']}跳过下载，仅保存缩略图 - 消息ID: {message_id}, 大小: {size_mb:.1f}MB")
                 return media_info
                 
             elif isinstance(message.media, MessageMediaWebPage):

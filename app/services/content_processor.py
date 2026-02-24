@@ -447,25 +447,31 @@ class ContentProcessor:
                 if message.duplicate_status == 'none':
                     media_to_check = []
 
-                    # 收集需要检测的媒体
+                    # 收集需要检测的媒体（优先用缩略图，兼容本地文件）
                     if message.is_combined and message.media_group_display:
                         # 组消息：多个媒体
                         for idx, media_item in enumerate(message.media_group_display):
-                            if isinstance(media_item, dict) and media_item.get('file_path'):
+                            thumb = media_item.get('thumbnail_path') if isinstance(media_item, dict) else None
+                            fpath = media_item.get('file_path') if isinstance(media_item, dict) else None
+                            check_path = thumb or fpath
+                            if check_path:
                                 media_to_check.append({
-                                    'path': media_item['file_path'],
+                                    'path': check_path,
                                     'size': media_item.get('file_size'),
                                     'index': idx,
                                     'total': len(message.media_group_display)
                                 })
-                    elif message.media_path:
-                        # 单个媒体
-                        media_to_check.append({
-                            'path': message.media_path,
-                            'size': message.media_info.get('file_size') if message.media_info else None,
-                            'index': 0,
-                            'total': 1
-                        })
+                    else:
+                        # 单个媒体：优先用缩略图路径
+                        thumb_path = message.media_info.get('thumbnail_path') if message.media_info else None
+                        check_path = thumb_path or message.media_path
+                        if check_path:
+                            media_to_check.append({
+                                'path': check_path,
+                                'size': message.media_info.get('file_size') if message.media_info else None,
+                                'index': 0,
+                                'total': 1
+                            })
 
                     # 检测每个媒体
                     for media in media_to_check:

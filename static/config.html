@@ -355,6 +355,34 @@
                                 </div>
                             </div>
 
+                            <div class="form-group">
+                                <label class="form-label">仅采集视频消息</label>
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="configs['collection.video_only']">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ configs['collection.video_only'] ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        启用后只采集包含视频的消息，跳过纯文本和纯图片消息
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">评论区视频关键词</label>
+                                <textarea
+                                    class="form-textarea"
+                                    v-model="configs['collection.comment_keywords_text']"
+                                    placeholder="每行一个关键词"
+                                    rows="4"></textarea>
+                                <div class="form-hint">
+                                    消息包含任一行内容时，自动采集评论区第一条视频。每行一个关键词
+                                </div>
+                            </div>
+
                             <div class="form-actions">
                                 <button type="button" class="btn btn-primary" @click="saveAllConfigs">
                                     💾 保存采集配置

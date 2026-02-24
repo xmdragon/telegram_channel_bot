@@ -510,16 +510,31 @@ class MessageForwarder:
 
         return entity
 
+    _entity_cache_warmed = False  # 类级别标记，避免重复预热
+
     async def _fetch_source_media(self, source_channel_id, message_id):
-        """从源频道获取原消息的媒体对象（用于视频等未下载的文件转发）"""
+        """从源频道获取原消息的媒体引用（返回InputPhoto/InputDocument供跨session发送）"""
+        from telethon.tl.types import (
+            MessageMediaPhoto, MessageMediaDocument,
+            InputPhoto, InputDocument
+        )
         from app.telegram.dual_session_manager import dual_session_manager
         listener_client = await dual_session_manager.get_listener_client()
         if not listener_client:
             raise RuntimeError("采集客户端不可用")
 
-        # Telethon的get_messages直接接受带-100前缀的int ID，无需解析entity
         peer_id = int(source_channel_id)
-        messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
+        try:
+            messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
+        except ValueError:
+            # entity cache 为空，预热一次后重试
+            if not MessageForwarder._entity_cache_warmed:
+                logger.info("listener entity cache 为空，执行 get_dialogs 预热")
+                await listener_client.get_dialogs()
+                MessageForwarder._entity_cache_warmed = True
+                messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
+            else:
+                raise
         if not messages or not messages[0]:
             raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
 
@@ -527,7 +542,25 @@ class MessageForwarder:
         if not original_msg.media:
             raise RuntimeError(f"原消息无媒体: {source_channel_id}:{message_id}")
 
-        return original_msg.media
+        # 转换为 Input 类型，避免跨 session 时 PeerChannel 解析失败
+        media = original_msg.media
+        if isinstance(media, MessageMediaPhoto) and media.photo:
+            photo = media.photo
+            return InputPhoto(
+                id=photo.id,
+                access_hash=photo.access_hash,
+                file_reference=photo.file_reference
+            )
+        elif isinstance(media, MessageMediaDocument) and media.document:
+            doc = media.document
+            return InputDocument(
+                id=doc.id,
+                access_hash=doc.access_hash,
+                file_reference=doc.file_reference
+            )
+
+        # fallback: 直接返回 media 对象
+        return media
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """

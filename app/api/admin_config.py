@@ -58,6 +58,8 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
         "collection.max_media_size_mb": await config_manager.get_config('collection.max_media_size_mb', 200),
         "collection.max_messages_per_batch": await config_manager.get_config('collection.max_messages_per_batch', 10),
         "source.history_limit": await config_manager.get_config('source.history_limit', 50),
+        "collection.video_only": await config_manager.get_config('collection.video_only', False),
+        "collection.comment_keywords": await config_manager.get_config('collection.comment_keywords', []),
 
         # 去重检测配置
         "duplicate_detection.enabled": await config_manager.get_config('duplicate_detection.enabled', True),

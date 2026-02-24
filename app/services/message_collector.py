@@ -92,6 +92,8 @@ class CollectorConfigManager:
         self.collection_enabled: bool = False
         self.auto_reject_ads: bool = True  # 是否自动拒绝广告
         self.max_media_size_mb: int = 200  # 媒体文件大小限制(MB)
+        self.video_only: bool = False  # 仅采集视频消息
+        self.comment_keywords: List[str] = []  # 评论区视频关键词
         self._system_mtime = 0
     
     async def load_config(self):
@@ -113,6 +115,18 @@ class CollectorConfigManager:
             # 加载媒体大小限制配置
             max_media_size_value = system_config.get("collection.max_media_size_mb", {}).get("value", "200")
             self.max_media_size_mb = int(max_media_size_value)
+
+            # 加载仅采集视频配置
+            self.video_only = self._parse_bool_config(system_config.get("collection.video_only", {}).get("value", "false"))
+
+            # 加载评论区视频关键词
+            kw_raw = system_config.get("collection.comment_keywords", {}).get("value", "[]")
+            if isinstance(kw_raw, str):
+                try:
+                    kw_raw = json.loads(kw_raw)
+                except (json.JSONDecodeError, TypeError):
+                    kw_raw = []
+            self.comment_keywords = [k.strip() for k in kw_raw if isinstance(k, str) and k.strip()] if isinstance(kw_raw, list) else []
 
             # 加载过滤器配置
             self.filter_enabled = self._parse_bool_config(system_config.get("filter.enabled", {}).get("value", "false"))
@@ -150,6 +164,16 @@ class CollectorConfigManager:
         """获取是否自动拒绝广告配置"""
         await self.load_config()
         return self.auto_reject_ads
+
+    async def get_video_only(self) -> bool:
+        """获取是否仅采集视频消息"""
+        await self.load_config()
+        return self.video_only
+
+    async def get_comment_keywords(self) -> List[str]:
+        """获取评论区视频关键词列表"""
+        await self.load_config()
+        return self.comment_keywords
 
     def _parse_bool_config(self, value) -> bool:
         """解析布尔配置值"""
@@ -774,6 +798,35 @@ class TelegramMessageCollector:
         if processed_count > 0:
             logger.info(f"频道{channel_name}/{channel_id}采集成功（包含{media_count}个媒体）")
     
+    async def _fetch_comment_video(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[TLMessage]:
+        """从评论区抓取第一条带视频的评论，替换原消息"""
+        try:
+            from telethon.tl.types import MessageMediaDocument
+            entity = await self.channel_manager.get_channel_entity(
+                channel, self.telethon_client
+            )
+            if not entity:
+                logger.warning(f"获取评论区失败: 无法获取频道实体 {channel_id}")
+                return None
+            replies = await self.telethon_client.get_messages(
+                entity, reply_to=message.id, limit=10
+            )
+            for r in replies:
+                if not r or not r.media:
+                    continue
+                if isinstance(r.media, MessageMediaDocument):
+                    doc = r.media.document
+                    if doc and (doc.mime_type or '').startswith('video/'):
+                        logger.info(
+                            f"评论区视频命中: 原帖 {message.id} -> 评论 {r.id}"
+                        )
+                        return r
+            logger.debug(f"评论区无视频，跳过消息 {message.id}")
+            return None
+        except Exception as e:
+            logger.warning(f"获取评论区失败 {message.id}: {e}")
+            return None
+
     async def _process_single_message(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理单个消息，包括媒体下载"""
         try:
@@ -801,6 +854,33 @@ class TelegramMessageCollector:
                             logger.warning(f"消息 {message.id} 图片文件超过限制 {max_media_size_mb}MB，跳过该消息")
                             return None
 
+            # 仅采集视频消息过滤
+            if await self.config_manager.get_video_only():
+                has_video = False
+                if message.media:
+                    from telethon.tl.types import MessageMediaDocument as MMD
+                    if isinstance(message.media, MMD):
+                        doc = message.media.document
+                        if doc and (doc.mime_type or '').startswith('video/'):
+                            has_video = True
+                if not has_video:
+                    return None
+
+            # 评论区视频关键词检查
+            comment_keywords = await self.config_manager.get_comment_keywords()
+            if comment_keywords:
+                text = (message.message or "").strip()
+                if text and any(kw in text for kw in comment_keywords):
+                    original_msg_id = message.id
+                    comment_msg = await self._fetch_comment_video(
+                        message, channel_id, channel
+                    )
+                    if comment_msg is None:
+                        return None
+                    message = comment_msg
+                    # 保留原帖的message_id用于checkpoint和去重
+                    message._original_msg_id = original_msg_id
+
             # 下载媒体（如果有）
             media_info = None
             if message.media:
@@ -810,10 +890,11 @@ class TelegramMessageCollector:
                     self.telethon_client, message, message.id
                 )
             
-            # 创建LocalMessage
+            # 创建LocalMessage（评论替换时保留原帖ID）
+            effective_msg_id = getattr(message, '_original_msg_id', message.id)
             return LocalMessage(
                 channel_id=channel_id,
-                message_id=message.id,
+                message_id=effective_msg_id,
                 grouped_id=getattr(message, 'grouped_id', None),
                 content=message.message or "",
                 filtered_content=message.message or "",  # 暂时与content相同
@@ -883,6 +964,17 @@ class TelegramMessageCollector:
 
             # 使用通过检查的消息继续处理
             group_messages = valid_messages
+
+            # 仅采集视频消息过滤（组消息中至少有一个视频才保留）
+            if await self.config_manager.get_video_only():
+                has_video = any(
+                    isinstance(msg.media, MessageMediaDocument)
+                    and msg.media.document
+                    and (msg.media.document.mime_type or '').startswith('video/')
+                    for msg in group_messages if msg.media
+                )
+                if not has_video:
+                    return None
 
             # 确定主消息（第一条有文本的，或第一条）
             primary_msg = next((msg for msg in group_messages if msg.message), group_messages[0])

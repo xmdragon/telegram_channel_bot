@@ -153,24 +153,34 @@ async def reset_system() -> Dict[str, Any]:
         # 步骤5：重置频道采集点 (75%)
         await websocket_manager.broadcast_progress(operation, 75, "重置频道采集点...")
         try:
+            # 清空 SQLite channel_checkpoints 表（采集器实际使用的 checkpoint）
+            try:
+                from app.storage.database import db_manager
+                conn = db_manager._get_connection()
+                conn.execute("DELETE FROM channel_checkpoints")
+                conn.commit()
+                logger.info("已清空 SQLite channel_checkpoints 表")
+            except Exception as e:
+                logger.error(f"清空 channel_checkpoints 表失败: {e}")
+
             all_channels = channel_store.get_all_channels()
             source_channels = [ch for ch in all_channels if ch.get('channel_type') == 'source']
             reset_count = 0
             failed_count = 0
-            
+
             for i, channel in enumerate(source_channels):
                 try:
                     old_id = channel.get('last_message_id', 0)
                     channel['last_message_id'] = 0
                     channel_store.update_channel(channel)
                     reset_count += 1
-                    
+
                     # 更新进度
                     progress = 75 + (20 * (i + 1) / len(source_channels))
                     channel_name = channel.get('channel_title', channel.get('channel_name', channel['channel_id']))
                     await websocket_manager.broadcast_progress(
-                        operation, 
-                        int(progress), 
+                        operation,
+                        int(progress),
                         f"重置频道 {channel_name} ({i + 1}/{len(source_channels)})"
                     )
                     logger.info(f"重置频道 {channel.get('channel_id')} 采集点: {old_id} -> 0")

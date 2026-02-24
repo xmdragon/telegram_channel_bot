@@ -145,25 +145,23 @@ async def get_messages(
             if media_path:
                 # 修复路径处理：正确处理temp_media/前缀
                 if media_path.startswith('temp_media/'):
-                    # 如果路径已经包含temp_media/，直接加前导斜杠
                     message['media_display_url'] = '/' + media_path
                 else:
-                    # 否则使用原有逻辑
                     message['media_display_url'] = media_paths.get_temp_media_url(
                         os.path.basename(media_path)
                     )
-                # 统一字段名，确保前端能找到
                 message['media_path'] = media_path
 
-            # 处理视频缩略图URL
-            if message.get('media_type') == 'video' and message.get('thumbnail_url'):
-                # 确保缩略图路径也正确处理
-                thumbnail_path = message.get('thumbnail_url')
-                if thumbnail_path:
-                    if not thumbnail_path.startswith('/'):
-                        message['thumbnail_display_url'] = '/' + thumbnail_path
-                    else:
-                        message['thumbnail_display_url'] = thumbnail_path
+            # 处理缩略图URL（所有媒体类型通用）
+            thumbnail_path = message.get('thumbnail_url')
+            if thumbnail_path:
+                if not thumbnail_path.startswith('/'):
+                    message['thumbnail_display_url'] = '/' + thumbnail_path
+                else:
+                    message['thumbnail_display_url'] = thumbnail_path
+                # 如果没有完整媒体文件，用缩略图作为显示URL
+                if not message.get('media_display_url'):
+                    message['media_display_url'] = message['thumbnail_display_url']
             
             # 处理组合消息媒体 - 转换数据格式
             if message.get('media_group'):
@@ -191,7 +189,6 @@ async def get_messages(
                     }
                     # 添加显示URL
                     if media_item.get('media_path'):
-                        # 修复路径处理：正确处理temp_media/前缀
                         if media_item['media_path'].startswith('temp_media/'):
                             media_item['display_url'] = '/' + media_item['media_path']
                         else:
@@ -199,13 +196,16 @@ async def get_messages(
                                 os.path.basename(media_item['media_path'])
                             )
 
-                    # 处理视频缩略图URL
-                    if media_item.get('media_type') == 'video' and media_item.get('thumbnail_url'):
+                    # 处理缩略图URL（所有媒体类型通用）
+                    if media_item.get('thumbnail_url'):
                         thumbnail_url = media_item['thumbnail_url']
                         if not thumbnail_url.startswith('/'):
                             media_item['thumbnail_display_url'] = '/' + thumbnail_url
                         else:
                             media_item['thumbnail_display_url'] = thumbnail_url
+                        # 没有完整媒体文件时，用缩略图作为显示URL
+                        if not media_item.get('display_url'):
+                            media_item['display_url'] = media_item['thumbnail_display_url']
                     media_group_display.append(media_item)
                 
                 message['media_group_display'] = media_group_display
