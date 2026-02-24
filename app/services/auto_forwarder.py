@@ -296,7 +296,7 @@ class AutoForwarder:
         if not message.get('media_url') and not media_type:
             return base_timeout  # 纯文本消息使用配置的超时时间
 
-        media_url = message.get('media_url', '')
+        media_url = message.get('media_url') or ''
         if any(media_url.lower().endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv']):
             return base_timeout * 6
         elif any(media_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
