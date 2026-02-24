@@ -387,7 +387,8 @@ class MessageForwarder:
                 elif source_channel and media_item.get('message_id'):
                     # 本地文件不存在，从源频道获取媒体引用（视频等）
                     media_obj = await self._fetch_source_media(
-                        source_channel, media_item['message_id']
+                        source_channel, media_item['message_id'],
+                        username=message.get('source_channel_username')
                     )
                     media_files.append(media_obj)
                     logger.info(f"组媒体使用远程引用: {source_channel}:{media_item['message_id']}")
@@ -464,9 +465,10 @@ class MessageForwarder:
                 # 从源频道获取原消息媒体（视频等未下载的文件）
                 source_channel = message.get('source_channel')
                 msg_id = message.get('message_id')
+                username = message.get('source_channel_username')
                 if not source_channel or not msg_id:
                     raise RuntimeError(f"媒体文件不存在且缺少远程引用信息: source_channel={source_channel}, message_id={msg_id}")
-                file_to_send = await self._fetch_source_media(source_channel, msg_id)
+                file_to_send = await self._fetch_source_media(source_channel, msg_id, username=username)
                 logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
             logger.info(f"send_file: entity={target_channel_id}, file_type={type(file_to_send).__name__}, file={str(file_to_send)[:100]}")
@@ -529,20 +531,24 @@ class MessageForwarder:
 
     _listener_cache_warmed = False  # listener entity cache 预热标记
 
-    async def _fetch_source_media(self, source_channel_id, message_id):
+    async def _fetch_source_media(self, source_channel_id, message_id, username=None):
         """从源频道下载媒体到临时文件，返回本地路径供sender发送"""
         from app.telegram.dual_session_manager import dual_session_manager
         listener_client = await dual_session_manager.get_listener_client()
         if not listener_client:
             raise RuntimeError("采集客户端不可用")
 
-        # 首次调用时预热 listener entity cache
-        if not MessageForwarder._listener_cache_warmed:
-            await self._warm_entity_cache(listener_client, "listener")
-            MessageForwarder._listener_cache_warmed = True
-
-        peer_id = int(source_channel_id)
-        messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
+        # 优先用 username 解析频道，数字 ID 在新 session 中经常无法解析
+        peer = username if username else int(source_channel_id)
+        try:
+            messages = await listener_client.get_messages(peer, ids=[int(message_id)])
+        except (ValueError, TypeError):
+            # username 失败则回退到数字 ID
+            if username:
+                logger.warning(f"username {username} 解析失败，回退到数字ID {source_channel_id}")
+                messages = await listener_client.get_messages(int(source_channel_id), ids=[int(message_id)])
+            else:
+                raise
         if not messages or not messages[0]:
             raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
 
