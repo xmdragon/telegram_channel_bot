@@ -235,25 +235,29 @@ class AutoForwarder:
                     return None
 
                 logger.info(f"[DEBUG] 批次{batch_idx}: {len(pending_messages)} 条, 首条: {pending_messages[0].get('source_channel')}:{pending_messages[0].get('message_id')}, created_at={pending_messages[0].get('created_at')}")
+                skip_reasons = {}
                 for msg in pending_messages:
+                    msg_key = f"{msg.get('source_channel')}:{msg.get('message_id')}"
                     # 跳过已标记失败的消息（除非需要重试）
                     if msg.get('auto_forward_failed') and not msg.get('needs_retry'):
+                        skip_reasons[msg_key] = 'failed'
                         continue
 
                     # 跳过已处理的消息（广告、超长等）
                     if msg.get('auto_forward_processed'):
+                        skip_reasons[msg_key] = 'processed'
                         continue
 
                     # 跳过疑似重复消息
                     duplicate_status = msg.get('duplicate_status', 'none')
                     if duplicate_status == 'suspected':
-                        logger.debug(f"跳过疑似重复消息: {msg.get('source_channel')}:{msg.get('message_id')} "
-                                    f"(原消息: {msg.get('original_message_id')}, 相似度: {msg.get('similarity_score', 0):.3f})")
+                        skip_reasons[msg_key] = 'suspected'
                         continue
 
                     # 检查创建时间
                     created_at_str = msg.get('created_at')
                     if not created_at_str:
+                        skip_reasons[msg_key] = 'no_created_at'
                         continue
 
                     try:
@@ -262,10 +266,18 @@ class AutoForwarder:
 
                         if created_at <= cutoff_time:
                             return msg  # 已按时间排序，第一个符合条件的就是最旧的
+                        else:
+                            skip_reasons[msg_key] = f'too_new({created_at}>{cutoff_time})'
 
                     except Exception as e:
                         logger.error(f"解析消息时间失败: {e}")
+                        skip_reasons[msg_key] = f'parse_error({e})'
                         continue
+
+                # 记录跳过原因统计
+                from collections import Counter
+                reason_counts = Counter(skip_reasons.values())
+                logger.info(f"[DEBUG] 批次{batch_idx} 跳过统计: {dict(reason_counts)}")
 
                 offset += batch_size
 
