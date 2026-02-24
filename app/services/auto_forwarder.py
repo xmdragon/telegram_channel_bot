@@ -287,17 +287,20 @@ class AutoForwarder:
         base_timeout = await config_manager.get_config('processor.send_message_timeout', 120)
         base_timeout = int(base_timeout)
 
+        # 优先用 media_type 判断（skip_download 的视频 media_url 为空）
+        media_type = message.get('media_type', '')
+        if media_type == 'video':
+            return base_timeout * 6  # 视频使用6倍超时（720秒）
+
         # 检查是否有媒体
-        if not message.get('media_url'):
+        if not message.get('media_url') and not media_type:
             return base_timeout  # 纯文本消息使用配置的超时时间
 
         media_url = message.get('media_url', '')
-
-        # 根据文件扩展名判断类型，使用倍数关系
         if any(media_url.lower().endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv']):
-            return base_timeout * 6  # 视频文件使用6倍超时（720秒）
+            return base_timeout * 6
         elif any(media_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
-            return base_timeout  # 图片文件使用基础超时
+            return base_timeout
         else:
             return int(base_timeout * 1.5)  # 其他文件使用1.5倍超时
 
