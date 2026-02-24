@@ -480,9 +480,23 @@ class MessageForwarder:
             logger.error(f"发送媒体消息失败: {e}")
             raise
 
+    _sender_cache_warmed = False
+
+    async def _warm_entity_cache(self, client, label="client"):
+        """首次调用时预热实体缓存"""
+        try:
+            await client.get_dialogs()
+            logger.info(f"{label} entity cache 已预热")
+        except Exception as e:
+            logger.warning(f"{label} get_dialogs 预热失败: {e}")
+
     async def _resolve_target_entity(self, client, config_manager):
         """解析目标频道实体，优先用已缓存的ID，失败则从链接解析并回写ID"""
         from telethon.tl.types import PeerChannel
+
+        if not MessageForwarder._sender_cache_warmed:
+            await self._warm_entity_cache(client, "sender")
+            MessageForwarder._sender_cache_warmed = True
 
         target_channel_id = await config_manager.get_config('target.channel_id')
 
@@ -510,7 +524,7 @@ class MessageForwarder:
 
         return entity
 
-    _entity_cache_warmed = False  # listener entity cache 预热标记
+    _listener_cache_warmed = False  # listener entity cache 预热标记
 
     async def _fetch_source_media(self, source_channel_id, message_id):
         """从源频道下载媒体到临时文件，返回本地路径供sender发送"""
@@ -519,17 +533,13 @@ class MessageForwarder:
         if not listener_client:
             raise RuntimeError("采集客户端不可用")
 
+        # 首次调用时预热 listener entity cache
+        if not MessageForwarder._listener_cache_warmed:
+            await self._warm_entity_cache(listener_client, "listener")
+            MessageForwarder._listener_cache_warmed = True
+
         peer_id = int(source_channel_id)
-        try:
-            messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
-        except ValueError:
-            if not MessageForwarder._entity_cache_warmed:
-                logger.info("listener entity cache 为空，执行 get_dialogs 预热")
-                await listener_client.get_dialogs()
-                MessageForwarder._entity_cache_warmed = True
-                messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
-            else:
-                raise
+        messages = await listener_client.get_messages(peer_id, ids=[int(message_id)])
         if not messages or not messages[0]:
             raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
 
