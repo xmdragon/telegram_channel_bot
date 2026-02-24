@@ -376,7 +376,7 @@ class MessageForwarder:
             # 准备媒体文件列表（支持本地文件和远程引用混合）
             source_channel = message.get('source_channel')
             send_client = client  # 默认用sender，远程引用时切换为listener
-            has_remote = False
+            send_entity = target_channel_id
             for media_item in message.media_group_display:
                 file_path = media_item.get('file_path')
                 if file_path and file_path.startswith('/temp_media/'):
@@ -386,14 +386,13 @@ class MessageForwarder:
                 if file_path and os.path.exists(file_path):
                     media_files.append(file_path)
                 elif source_channel and media_item.get('message_id'):
-                    # 用listener_client获取媒体引用（同session无需下载）
-                    listener, media_obj = await self._fetch_source_media(
+                    listener, media_obj, listener_target = await self._fetch_source_media(
                         source_channel, media_item['message_id'],
                         username=message.get('source_channel_username')
                     )
                     media_files.append(media_obj)
-                    send_client = listener  # 远程引用必须用listener发送
-                    has_remote = True
+                    send_client = listener
+                    send_entity = listener_target
                     logger.info(f"组媒体引用: {source_channel}:{media_item['message_id']}")
                 else:
                     logger.warning(f"媒体文件不可用: {file_path}")
@@ -409,12 +408,12 @@ class MessageForwarder:
                     timeout=timeout
                 )
 
-            # 发送媒体组（远程引用用listener，本地文件用sender）
+            # 发送媒体组（远程引用用listener+listener_entity，本地文件用sender）
             timeout = await self._get_file_timeout()
             file_arg = media_files[0] if len(media_files) == 1 else media_files
             result = await asyncio.wait_for(
                 send_client.send_file(
-                    entity=target_channel_id,
+                    entity=send_entity,
                     file=file_arg,
                     caption=caption_text
                 ),
@@ -451,6 +450,7 @@ class MessageForwarder:
             if use_local_file:
                 file_to_send = file_path
                 send_client = client
+                send_entity = target_channel_id
             else:
                 # 从源频道获取媒体引用，用listener_client同session发送（无需下载）
                 source_channel = message.get('source_channel')
@@ -458,13 +458,13 @@ class MessageForwarder:
                 username = message.get('source_channel_username')
                 if not source_channel or not msg_id:
                     raise RuntimeError(f"媒体文件不存在且缺少远程引用信息: source_channel={source_channel}, message_id={msg_id}")
-                send_client, file_to_send = await self._fetch_source_media(source_channel, msg_id, username=username)
+                send_client, file_to_send, send_entity = await self._fetch_source_media(source_channel, msg_id, username=username)
                 logger.info(f"使用远程媒体引用: {source_channel}:{msg_id}")
 
             timeout = await self._get_file_timeout()
             return await asyncio.wait_for(
                 send_client.send_file(
-                    entity=target_channel_id,
+                    entity=send_entity,
                     file=file_to_send,
                     caption=caption_with_footer
                 ),
@@ -520,12 +520,22 @@ class MessageForwarder:
 
     _listener_cache_warmed = False  # listener entity cache 预热标记
 
+    _listener_target_entity = None  # listener解析的目标频道entity缓存
+
     async def _fetch_source_media(self, source_channel_id, message_id, username=None):
-        """从源频道获取媒体引用，返回 (listener_client, media) 元组供同session发送"""
+        """从源频道获取媒体引用，返回 (listener_client, media, target_entity) 元组"""
         from app.telegram.dual_session_manager import dual_session_manager
         listener_client = await dual_session_manager.get_listener_client()
         if not listener_client:
             raise RuntimeError("采集客户端不可用")
+
+        # 确保 listener 解析过目标频道（只需一次）
+        if not MessageForwarder._listener_target_entity:
+            from app.services.config_manager import config_manager
+            target_link = await config_manager.get_config('target.channel_link', '')
+            if target_link:
+                MessageForwarder._listener_target_entity = await listener_client.get_entity(target_link.lstrip('@'))
+                logger.info(f"listener已解析目标频道: {MessageForwarder._listener_target_entity.id}")
 
         # 优先用 username 解析频道，数字 ID 在新 session 中经常无法解析
         peer = username if username else int(source_channel_id)
@@ -545,7 +555,7 @@ class MessageForwarder:
             raise RuntimeError(f"原消息无媒体: {source_channel_id}:{message_id}")
 
         logger.info(f"获取媒体引用: {source_channel_id}:{message_id}, type={type(original_msg.media).__name__}")
-        return (listener_client, original_msg.media)
+        return (listener_client, original_msg.media, MessageForwarder._listener_target_entity)
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """
