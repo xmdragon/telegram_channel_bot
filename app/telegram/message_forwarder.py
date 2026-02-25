@@ -526,41 +526,82 @@ class MessageForwarder:
     _listener_cache_warmed = False  # listener entity cache 预热标记
 
     _listener_target_entity = None  # listener解析的目标频道entity缓存
+    _sender_target_entity = None   # sender解析的目标频道entity缓存
 
     async def _fetch_source_media(self, source_channel_id, message_id, username=None):
-        """从源频道获取媒体引用，返回 (listener_client, media, target_entity) 元组"""
+        """从源频道获取媒体引用，返回 (client, media, target_entity) 元组
+        优先用listener，失败时自动回退到sender"""
         from app.telegram.dual_session_manager import dual_session_manager
-        listener_client = await dual_session_manager.get_listener_client()
-        if not listener_client:
-            raise RuntimeError("采集客户端不可用")
 
-        # 确保 listener 解析过目标频道（只需一次）
-        if not MessageForwarder._listener_target_entity:
-            from app.services.config_manager import config_manager
-            target_link = await config_manager.get_config('target.channel_link', '')
-            if target_link:
-                MessageForwarder._listener_target_entity = await listener_client.get_entity(target_link.lstrip('@'))
-                logger.info(f"listener已解析目标频道: {MessageForwarder._listener_target_entity.id}")
+        # 尝试 listener
+        original_msg = await self._try_fetch_media(
+            dual_session_manager, 'listener', source_channel_id, message_id, username
+        )
+        if original_msg:
+            return (
+                await dual_session_manager.get_listener_client(),
+                original_msg.media,
+                await self._ensure_target_entity('listener', dual_session_manager),
+            )
 
-        # 优先用 username 解析频道，数字 ID 在新 session 中经常无法解析
+        # listener 失败，回退 sender
+        logger.info(f"listener无法获取 {source_channel_id}:{message_id}，尝试sender")
+        original_msg = await self._try_fetch_media(
+            dual_session_manager, 'sender', source_channel_id, message_id, username
+        )
+        if original_msg:
+            return (
+                await dual_session_manager.get_sender_client(),
+                original_msg.media,
+                await self._ensure_target_entity('sender', dual_session_manager),
+            )
+
+        raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
+
+    async def _try_fetch_media(self, dsm, role, source_channel_id, message_id, username=None):
+        """尝试用指定角色的客户端获取源消息，返回消息对象或None"""
+        client = await (dsm.get_listener_client() if role == 'listener' else dsm.get_sender_client())
+        if not client:
+            return None
         peer = username if username else int(source_channel_id)
         try:
-            messages = await listener_client.get_messages(peer, ids=[int(message_id)])
+            messages = await client.get_messages(peer, ids=[int(message_id)])
         except (ValueError, TypeError):
             if username:
-                logger.warning(f"username {username} 解析失败，回退到数字ID {source_channel_id}")
-                messages = await listener_client.get_messages(int(source_channel_id), ids=[int(message_id)])
+                try:
+                    messages = await client.get_messages(int(source_channel_id), ids=[int(message_id)])
+                except Exception:
+                    return None
             else:
-                raise
-        if not messages or not messages[0]:
-            raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
+                return None
+        except Exception as e:
+            logger.debug(f"{role}获取消息失败 {source_channel_id}:{message_id}: {e}")
+            return None
+        if not messages or not messages[0] or not messages[0].media:
+            return None
+        logger.info(f"{role}获取媒体引用: {source_channel_id}:{message_id}, type={type(messages[0].media).__name__}")
+        return messages[0]
 
-        original_msg = messages[0]
-        if not original_msg.media:
-            raise RuntimeError(f"原消息无媒体: {source_channel_id}:{message_id}")
-
-        logger.info(f"获取媒体引用: {source_channel_id}:{message_id}, type={type(original_msg.media).__name__}")
-        return (listener_client, original_msg.media, MessageForwarder._listener_target_entity)
+    async def _ensure_target_entity(self, role, dsm):
+        """确保指定角色的客户端已解析目标频道entity"""
+        if role == 'listener':
+            if not MessageForwarder._listener_target_entity:
+                client = await dsm.get_listener_client()
+                from app.services.config_manager import config_manager
+                target_link = await config_manager.get_config('target.channel_link', '')
+                if target_link and client:
+                    MessageForwarder._listener_target_entity = await client.get_entity(target_link.lstrip('@'))
+                    logger.info(f"listener已解析目标频道: {MessageForwarder._listener_target_entity.id}")
+            return MessageForwarder._listener_target_entity
+        else:
+            if not MessageForwarder._sender_target_entity:
+                client = await dsm.get_sender_client()
+                from app.services.config_manager import config_manager
+                target_link = await config_manager.get_config('target.channel_link', '')
+                if target_link and client:
+                    MessageForwarder._sender_target_entity = await client.get_entity(target_link.lstrip('@'))
+                    logger.info(f"sender已解析目标频道: {MessageForwarder._sender_target_entity.id}")
+            return MessageForwarder._sender_target_entity
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """
