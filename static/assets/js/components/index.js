@@ -89,8 +89,18 @@ const MainApp = {
                 filter_reason: null
             },
 
-            // 排序选项
-            sortOrder: 'asc',  // 默认旧到新
+            // 排序选项（从缓存读取，默认新到旧）
+            sortOrder: (() => {
+                try {
+                    const cached = localStorage.getItem('msg_sort_order');
+                    if (cached) {
+                        const { value, expires } = JSON.parse(cached);
+                        if (Date.now() < expires) return value;
+                        localStorage.removeItem('msg_sort_order');
+                    }
+                } catch(e) {}
+                return 'desc';
+            })(),
             
             
             // 操作状态
@@ -509,12 +519,17 @@ const MainApp = {
 
         // 处理排序切换 - 本地反转数组，避免重新请求API
         handleSortOrderChange() {
+            // 缓存排序偏好（7天过期）
+            try {
+                localStorage.setItem('msg_sort_order', JSON.stringify({
+                    value: this.sortOrder,
+                    expires: Date.now() + 7 * 24 * 60 * 60 * 1000
+                }));
+            } catch(e) {}
+
             if (this.messages.length > 0) {
-                // 如果有数据，直接反转数组
                 this.messages.reverse();
-                console.log(`已切换排序为: ${this.sortOrder === 'desc' ? '新到旧' : '旧到新'}`);
             } else {
-                // 如果没有数据，正常加载
                 this.loadMessages();
             }
         },
