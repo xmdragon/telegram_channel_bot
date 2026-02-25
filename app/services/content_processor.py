@@ -392,13 +392,14 @@ class ContentProcessor:
                     except:
                         pass
 
+                # 构建完整的消息ID（文本去重和媒体去重共用）
+                full_message_id = f"{message.channel_id}:{message.message_id}" if message.channel_id else str(message.message_id)
+
                 # 如果已经是广告且被拒绝，跳过去重检测
                 if message.is_ad and message.status == 'ad_rejected':
                     logger.debug(f"跳过广告消息的去重检测: {message.channel_id}:{message.message_id}")
                     message.duplicate_status = 'skipped'
                 elif duplicate_detection_enabled and current_content and len(current_content.strip()) >= 10:
-                    # 构建完整的消息ID
-                    full_message_id = f"{message.channel_id}:{message.message_id}" if message.channel_id else str(message.message_id)
 
                     # 执行去重检测
                     duplicate_result = await duplicate_detector.detect_duplicate(
