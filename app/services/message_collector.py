@@ -316,8 +316,10 @@ class TelegramMessageCollector:
             if self.session_manager is None:
                 raise RuntimeError("dual_session_manager导入失败，无法初始化")
             
-            # 2. 获取Telethon客户端（使用监听客户端进行消息采集）
+            # 2. 获取Telethon客户端
+            # 优先用listener，如果listener无法获取某些频道消息则回退到sender
             self.telethon_client = await self.session_manager.get_listener_client()
+            self._fallback_client = None  # sender作为备用
             
             # 3. 确保客户端连接
             if self.telethon_client and not self.telethon_client.is_connected():
@@ -339,6 +341,19 @@ class TelegramMessageCollector:
             logger.error(f"TelegramMessageCollector初始化失败: {e}")
             raise
     
+    async def _get_fallback_client(self):
+        """获取备用客户端(sender)，用于listener无法访问的频道"""
+        if self._fallback_client:
+            return self._fallback_client
+        try:
+            self._fallback_client = await self.session_manager.get_sender_client()
+            if self._fallback_client:
+                logger.info("已初始化sender作为备用采集客户端")
+            return self._fallback_client
+        except Exception as e:
+            logger.warning(f"获取备用客户端失败: {e}")
+            return None
+
     async def start_collecting(self):
         """开始连续消息采集循环"""
         logger.info("消息采集服务已启动，等待配置...")
@@ -493,11 +508,25 @@ class TelegramMessageCollector:
                         except Exception as e:
                             logger.warning(f"向前扩展组消息失败: {e}")
 
+            # listener获取不到消息时，用sender重试
             if not messages:
-                logger.info(f"频道 {channel_id} checkpoint={checkpoint} get_messages返回空")
-                return []
+                fallback = await self._get_fallback_client()
+                if fallback:
+                    channel_name = entity.username if hasattr(entity, 'username') and entity.username else str(channel_id)
+                    try:
+                        fb_entity = await fallback.get_entity(channel_name)
+                        if checkpoint == 0:
+                            messages = await fallback.get_messages(fb_entity, limit=actual_limit)
+                        else:
+                            messages = await fallback.get_messages(fb_entity, min_id=checkpoint, limit=None)
+                            messages = [msg for msg in messages if msg and msg.id > checkpoint]
+                        if messages:
+                            logger.info(f"频道 {channel_id} listener获取为空，sender获取到{len(messages)}条消息")
+                    except Exception as e:
+                        logger.warning(f"频道 {channel_id} sender备用获取失败: {e}")
 
-            logger.info(f"频道 {channel_id} checkpoint={checkpoint} 获取到{len(messages)}条原始消息")
+            if not messages:
+                return []
             # 🔧 修复：改进分组逻辑，确保组消息完整性
             message_groups = {}  # {grouped_id: [msg_ids]}
             single_messages = []  # 单独消息
