@@ -350,7 +350,8 @@ class MessageForwarder:
             # 出错时保守处理，假设超限
             return False, 0
     
-    async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message, signature: str = None):
+    async def _send_combined_message(self, client: TelegramClient, target_channel_id: str,
+                                     message, signature: str = None, target_channel=None):
         """发送组合消息（媒体组）"""
         try:
             media_files = []
@@ -365,7 +366,7 @@ class MessageForwarder:
 
             # 添加频道落款
             caption_text = await self._add_channel_footer(caption_text, signature=signature)
-            
+
             # 准备媒体文件列表（支持本地文件和远程引用混合）
             source_channel = message.get('source_channel')
             send_client = client  # 默认用sender，远程引用时切换为listener
@@ -381,7 +382,8 @@ class MessageForwarder:
                 elif source_channel and media_item.get('message_id'):
                     listener, media_obj, listener_target = await self._fetch_source_media(
                         source_channel, media_item['message_id'],
-                        username=message.get('source_channel_username')
+                        username=message.get('source_channel_username'),
+                        target_channel=target_channel
                     )
                     media_files.append(media_obj)
                     send_client = listener
@@ -418,7 +420,8 @@ class MessageForwarder:
             logger.error(f"发送组合消息失败: {e}")
             raise
     
-    async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message, signature: str = None):
+    async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str,
+                                         message, signature: str = None, target_channel=None):
         """发送单个媒体消息（支持本地文件和远程引用）"""
         try:
             caption_text = message.filtered_content or message.content
@@ -453,7 +456,9 @@ class MessageForwarder:
                 username = message.get('source_channel_username')
                 if not source_channel or not msg_id:
                     raise RuntimeError(f"媒体文件不存在且缺少远程引用信息: source_channel={source_channel}, message_id={msg_id}")
-                send_client, file_to_send, send_entity = await self._fetch_source_media(source_channel, msg_id, username=username)
+                send_client, file_to_send, send_entity = await self._fetch_source_media(
+                    source_channel, msg_id, username=username, target_channel=target_channel
+                )
                 if comment_msg_id:
                     logger.info(f"使用评论区媒体引用: {source_channel}:{comment_msg_id}")
                 else:
@@ -522,7 +527,8 @@ class MessageForwarder:
     _sender_target_entity = None   # sender解析的目标频道entity缓存（兼容旧逻辑）
     _target_entities = {}  # key: f"{role}:{channel_id}", value: entity
 
-    async def _fetch_source_media(self, source_channel_id, message_id, username=None):
+    async def _fetch_source_media(self, source_channel_id, message_id,
+                                  username=None, target_channel=None):
         """从源频道获取媒体引用，返回 (client, media, target_entity) 元组
         优先用listener，失败时自动回退到sender"""
         from app.telegram.dual_session_manager import dual_session_manager
@@ -535,7 +541,7 @@ class MessageForwarder:
             return (
                 await dual_session_manager.get_listener_client(),
                 original_msg.media,
-                await self._ensure_target_entity('listener', dual_session_manager),
+                await self._ensure_target_entity('listener', dual_session_manager, target_channel),
             )
 
         # listener 失败，回退 sender
@@ -547,7 +553,7 @@ class MessageForwarder:
             return (
                 await dual_session_manager.get_sender_client(),
                 original_msg.media,
-                await self._ensure_target_entity('sender', dual_session_manager),
+                await self._ensure_target_entity('sender', dual_session_manager, target_channel),
             )
 
         raise RuntimeError(f"原消息不存在: {source_channel_id}:{message_id}")
@@ -683,20 +689,24 @@ class MessageForwarder:
             raise
 
     async def _send_combined_message_with_retry(self, client: TelegramClient, target_channel_id: str,
-                                               message, message_type: MessageType, signature: str = None) -> any:
+                                               message, message_type: MessageType,
+                                               signature: str = None, target_channel=None) -> any:
         """发送组合消息（带FloodWait重试）"""
         try:
-            return await self._send_combined_message(client, target_channel_id, message, signature=signature)
+            return await self._send_combined_message(
+                client, target_channel_id, message, signature=signature, target_channel=target_channel)
         except FloodWaitError as e:
             wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
             await rate_limiter.wait_for_flood_wait(wait_seconds)
             raise
 
     async def _send_single_media_message_with_retry(self, client: TelegramClient, target_channel_id: str,
-                                                   message, message_type: MessageType, signature: str = None) -> any:
+                                                   message, message_type: MessageType,
+                                                   signature: str = None, target_channel=None) -> any:
         """发送单个媒体消息（带FloodWait重试）"""
         try:
-            return await self._send_single_media_message(client, target_channel_id, message, signature=signature)
+            return await self._send_single_media_message(
+                client, target_channel_id, message, signature=signature, target_channel=target_channel)
         except FloodWaitError as e:
             wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
             await rate_limiter.wait_for_flood_wait(wait_seconds)
@@ -748,7 +758,8 @@ class MessageForwarder:
 
         # 发送消息
         sent_message = await self._send_message_to_entity(
-            client, target_entity, target_channel_id_str, message, signature, message_type
+            client, target_entity, target_channel_id_str, message, signature, message_type,
+            target_channel=target_channel
         )
 
         if not sent_message:
@@ -771,7 +782,8 @@ class MessageForwarder:
         except Exception:
             return await client.get_entity(ch_name.lstrip('@'))
 
-    async def _send_message_to_entity(self, client, target_entity, target_channel_id, message, signature, message_type):
+    async def _send_message_to_entity(self, client, target_entity, target_channel_id,
+                                      message, signature, message_type, target_channel=None):
         """发送消息到目标entity（提取自forward_to_target的发送逻辑）"""
         is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False)
         media_group = getattr(message, 'media_group_display', None) or message.get('media_group_display', None)
@@ -785,11 +797,13 @@ class MessageForwarder:
 
         if is_combined and media_group:
             return await self._send_combined_message_with_retry(
-                client, target_entity, message, message_type, signature=signature
+                client, target_entity, message, message_type,
+                signature=signature, target_channel=target_channel
             )
         elif self._has_sendable_media(actual_media_path, message):
             return await self._send_single_media_message_with_retry(
-                client, target_entity, message, message_type, signature=signature
+                client, target_entity, message, message_type,
+                signature=signature, target_channel=target_channel
             )
         else:
             return await self._send_text_with_footer(

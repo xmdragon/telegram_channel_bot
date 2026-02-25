@@ -21,7 +21,9 @@ class ChannelSyncService:
         - 找 target_results 中有 source_target_id 但缺少 target_id 的
         """
         from app.storage.redis_manager import redis_manager
-        approved = redis_manager.get_messages_by_status("approved", limit=99999)
+        approved = redis_manager.get_messages_by_status(
+            "approved", limit=99999, reverse=False
+        )
         missing = []
         for m in approved:
             results = m.get('target_results') or []
