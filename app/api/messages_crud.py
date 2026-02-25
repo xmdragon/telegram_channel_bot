@@ -767,6 +767,70 @@ async def update_message(
 
 
 
+async def _delete_multi_target_messages(dsm, target_results):
+    """删除多个目标频道中的消息"""
+    client = await dsm.get_sender_client()
+    if not client:
+        return "Telegram客户端未连接，仅删除本地消息"
+
+    deleted_count = 0
+    for tr in target_results:
+        tr_channel_id = tr.get('channel_id')
+        tr_msg_ids = tr.get('message_ids', [])
+        if not tr_channel_id or not tr_msg_ids:
+            continue
+        try:
+            channel_id_int = int(tr_channel_id)
+            try:
+                entity = await client.get_entity(channel_id_int)
+                await client.delete_messages(entity, tr_msg_ids)
+            except Exception:
+                await client.delete_messages(channel_id_int, tr_msg_ids)
+            deleted_count += len(tr_msg_ids)
+            logger.info(f"已删除目标频道消息: {tr_channel_id}:{tr_msg_ids}")
+        except Exception as e:
+            logger.warning(f"删除目标频道消息失败 {tr_channel_id}: {e}")
+
+    if deleted_count > 0:
+        return f"已删除{deleted_count}条目标频道消息"
+    return "未能删除目标频道消息"
+
+
+async def _delete_single_target_message(dsm, message):
+    """删除单个目标频道中的消息（旧格式兼容）"""
+    from app.services.config_manager import config_manager
+
+    target_msg_ids = message.get('target_message_ids')
+    if target_msg_ids and isinstance(target_msg_ids, list):
+        msg_ids_to_delete = target_msg_ids
+    else:
+        target_link = message.get('target_message_link')
+        target_msg_id = extract_message_id_from_target_link(target_link)
+        if not target_msg_id:
+            logger.warning(f"无法从目标消息链接解析消息ID: {target_link}")
+            return "无法解析目标消息ID，仅删除本地消息"
+        msg_ids_to_delete = [target_msg_id]
+
+    target_channel_id = await config_manager.get_config('target.channel_id')
+    if not target_channel_id:
+        return "未配置目标频道ID，仅删除本地消息"
+
+    client = await dsm.get_sender_client()
+    if not client:
+        return "Telegram客户端未连接，仅删除本地消息"
+
+    channel_id_int = int(target_channel_id)
+    try:
+        entity = await client.get_entity(channel_id_int)
+        await client.delete_messages(entity, msg_ids_to_delete)
+    except Exception:
+        await client.delete_messages(channel_id_int, msg_ids_to_delete)
+
+    msg_count = len(msg_ids_to_delete)
+    logger.info(f"成功删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
+    return f"已删除目标频道{msg_count}条消息"
+
+
 @router.delete(ROUTES.messages.delete)
 async def delete_message(
     message_id: str,
@@ -790,63 +854,18 @@ async def delete_message(
         if current_status in MessageStatus.get_approved_statuses() and message.get('target_message_link'):
             try:
                 from app.telegram.dual_session_manager import dual_session_manager
-                from app.services.config_manager import config_manager
 
-                # 🚀 优先使用新字段target_message_ids（支持媒体组批量删除）
-                target_msg_ids = message.get('target_message_ids')
-                if target_msg_ids and isinstance(target_msg_ids, list):
-                    # 新格式：使用批量删除
-                    msg_ids_to_delete = target_msg_ids
-                    logger.info(f"使用批量删除模式，目标消息IDs: {msg_ids_to_delete}")
+                # 优先使用多目标结果
+                target_results = message.get('target_results', [])
+                if target_results and isinstance(target_results, list):
+                    target_delete_result = await _delete_multi_target_messages(
+                        dual_session_manager, target_results
+                    )
                 else:
-                    # 兼容模式：从target_message_link解析单个ID
-                    target_link = message.get('target_message_link')
-                    target_msg_id = extract_message_id_from_target_link(target_link)
-
-                    if not target_msg_id:
-                        logger.warning(f"无法从目标消息链接解析消息ID: {target_link}")
-                        target_delete_result = "无法解析目标消息ID，仅删除本地消息"
-                        msg_ids_to_delete = None
-                    else:
-                        msg_ids_to_delete = [target_msg_id]
-                        logger.info(f"使用兼容删除模式，目标消息ID: {target_msg_id}")
-
-                if msg_ids_to_delete:
-                    # 获取目标频道ID
-                    target_channel_id = await config_manager.get_config('target.channel_id')
-                    if target_channel_id:
-                        # 获取发送端客户端
-                        client = await dual_session_manager.get_sender_client()
-                        if client:
-                            logger.info(f"准备删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
-
-                            # 转换频道ID为整数格式（Telegram API要求）
-                            channel_id_int = int(target_channel_id)
-
-                            # 获取频道实体（确保API能找到频道）
-                            try:
-                                channel_entity = await client.get_entity(channel_id_int)
-                                logger.info(f"成功获取频道实体: {channel_entity.title}")
-
-                                # 🚀 批量删除目标频道中的消息
-                                await client.delete_messages(channel_entity, msg_ids_to_delete)
-                                msg_count = len(msg_ids_to_delete)
-                                target_delete_result = f"已删除目标频道{msg_count}条消息"
-                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
-
-                            except Exception as entity_error:
-                                logger.warning(f"获取频道实体失败，尝试直接使用频道ID: {entity_error}")
-                                # 备用方案：直接使用整数频道ID
-                                await client.delete_messages(channel_id_int, msg_ids_to_delete)
-                                msg_count = len(msg_ids_to_delete)
-                                target_delete_result = f"已删除目标频道{msg_count}条消息"
-                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
-                        else:
-                            logger.warning("Telegram客户端未连接，无法删除目标频道消息")
-                            target_delete_result = "Telegram客户端未连接，仅删除本地消息"
-                    else:
-                        logger.warning("未配置目标频道ID，无法删除目标频道消息")
-                        target_delete_result = "未配置目标频道ID，仅删除本地消息"
+                    # 旧格式兼容：单目标删除
+                    target_delete_result = await _delete_single_target_message(
+                        dual_session_manager, message
+                    )
 
             except Exception as e:
                 logger.error(f"删除目标频道消息失败: {e}")
@@ -1195,6 +1214,7 @@ async def publish_single_message(
         target_link = target_info.get('link') if isinstance(target_info, dict) else target_info
         target_message_id = target_info.get('target_message_id') if isinstance(target_info, dict) else None
         target_message_ids = target_info.get('target_message_ids', []) if isinstance(target_info, dict) else []
+        target_results = target_info.get('target_results', []) if isinstance(target_info, dict) else []
 
         # 5. 更新状态为已发布（区分自动/手动）
         from app.core.message_status import MessageStatus
@@ -1228,6 +1248,8 @@ async def publish_single_message(
                 update_data['target_message_id'] = str(target_message_id)
             if target_message_ids:
                 update_data['target_message_ids'] = target_message_ids
+            if target_results:
+                update_data['target_results'] = target_results
 
             redis_manager.update_message(channel_id, msg_id, update_data)
 

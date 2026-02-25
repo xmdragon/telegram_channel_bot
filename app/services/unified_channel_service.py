@@ -410,10 +410,41 @@ class UnifiedChannelService:
                 logger.error(f"更新频道 {channel_id} 的最后采集消息ID失败")
             
             return success
-            
+
         except Exception as e:
             logger.error(f"更新频道最后采集消息ID失败: {e}")
             return False
+
+    async def update_channel_targets(self, channel_identifier: str, target_ids: list) -> Dict[str, Any]:
+        """
+        更新源频道的目标频道映射
+        Args:
+            channel_identifier: 频道标识符(ID、用户名或数字ID)
+            target_ids: 目标频道ID列表
+        """
+        try:
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                return {"success": False, "message": "存储服务未初始化"}
+
+            channel_data = await self._find_channel(channel_identifier)
+            if not channel_data:
+                return {"success": False, "message": "频道不存在"}
+
+            # 更新config中的target_channel_ids
+            config = channel_data.get('config', {})
+            config['target_channel_ids'] = target_ids
+            channel_data['config'] = config
+
+            success = channel_store.update_channel(channel_data)
+            if success:
+                logger.info(f"更新频道目标映射: {channel_identifier} -> {target_ids}")
+                return {"success": True, "message": "目标频道映射已更新", "data": channel_data}
+            return {"success": False, "message": "保存失败"}
+
+        except Exception as e:
+            logger.error(f"更新频道目标映射失败: {e}")
+            return {"success": False, "message": f"更新失败: {str(e)}"}
 
 # 全局实例
 unified_channel_service = UnifiedChannelService()

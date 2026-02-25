@@ -294,7 +294,7 @@ class JSONAdminStore(JSONStore):
         """保存管理员"""
         try:
             admins = self._load_json(self.ADMIN_FILE)
-            
+
             # 生成新ID或使用现有ID
             if 'id' in admin_data:
                 admin_id = str(admin_data['id'])
@@ -303,20 +303,104 @@ class JSONAdminStore(JSONStore):
                 # 生成新ID
                 existing_ids = [int(k) for k in admins.keys() if k.isdigit()]
                 admin_id = str(max(existing_ids, default=0) + 1)
-            
+
             # 添加时间戳
             admin_data = admin_data.copy()
             admin_data['updated_at'] = get_current_time().isoformat()
             if 'created_at' not in admin_data:
                 admin_data['created_at'] = get_current_time().isoformat()
-            
+
             admins[admin_id] = admin_data
             return self._save_json(self.ADMIN_FILE, admins)
-            
+
         except Exception as e:
             logger.error(f"保存管理员失败: {e}")
             return False
-    
+
+
+class JSONTargetChannelStore(JSONStore):
+    """目标频道存储（数组格式）"""
+
+    TARGET_CHANNEL_FILE = "target_channels.json"
+
+    def _load_channels(self) -> List[Dict]:
+        """加载目标频道列表"""
+        data = self._load_json(self.TARGET_CHANNEL_FILE)
+        if isinstance(data, list):
+            return data
+        return []
+
+    def get_all(self) -> List[Dict]:
+        """获取所有目标频道"""
+        return self._load_channels()
+
+    def get_by_id(self, target_id: int) -> Optional[Dict]:
+        """按ID获取目标频道"""
+        for channel in self._load_channels():
+            if channel.get('id') == target_id:
+                return channel
+        return None
+
+    def add(self, channel_data: Dict) -> bool:
+        """添加目标频道（自动生成ID、时间戳、去重）"""
+        try:
+            channels = self._load_channels()
+            channel_id = channel_data.get('channel_id')
+            channel_name = channel_data.get('channel_name')
+
+            # 去重检查
+            for ch in channels:
+                if (ch.get('channel_id') == channel_id and channel_id) or \
+                   (ch.get('channel_name') == channel_name and channel_name):
+                    logger.warning(f"目标频道已存在: {channel_name} / {channel_id}")
+                    return False
+
+            # 生成新ID和时间戳
+            new_id = max((ch.get('id', 0) for ch in channels), default=0) + 1
+            now = get_current_time().isoformat()
+            entry = channel_data.copy()
+            entry.update({'id': new_id, 'created_at': now, 'updated_at': now})
+
+            channels.append(entry)
+            return self._save_json(self.TARGET_CHANNEL_FILE, channels)
+
+        except Exception as e:
+            logger.error(f"添加目标频道失败: {e}")
+            return False
+
+    def update(self, target_id: int, updates: Dict) -> bool:
+        """更新指定ID的目标频道"""
+        try:
+            channels = self._load_channels()
+
+            for i, channel in enumerate(channels):
+                if channel.get('id') == target_id:
+                    updated = {**channel, **updates}
+                    updated['id'] = target_id  # 防止ID被覆盖
+                    updated['updated_at'] = get_current_time().isoformat()
+                    channels[i] = updated
+                    return self._save_json(self.TARGET_CHANNEL_FILE, channels)
+
+            logger.error(f"未找到ID为 {target_id} 的目标频道")
+            return False
+
+        except Exception as e:
+            logger.error(f"更新目标频道失败: {e}")
+            return False
+
+    def delete_by_id(self, target_id: int) -> bool:
+        """删除指定ID的目标频道"""
+        try:
+            channels = self._load_channels()
+            filtered = [ch for ch in channels if ch.get('id') != target_id]
+
+            if len(filtered) < len(channels):
+                return self._save_json(self.TARGET_CHANNEL_FILE, filtered)
+            return False
+
+        except Exception as e:
+            logger.error(f"删除目标频道失败: {e}")
+            return False
 
 
 # 全局实例和初始化同步机制
@@ -328,12 +412,13 @@ _initialization_in_progress = False
 json_config_store = None
 json_channel_store = None
 json_admin_store = None
+json_target_channel_store = None
 
 def init_json_stores(data_dir: str = None):
     """初始化JSON存储实例 - 线程安全的单例模式"""
-    global json_config_store, json_channel_store, json_admin_store
+    global json_config_store, json_channel_store, json_admin_store, json_target_channel_store
     global _initialization_complete, _initialization_in_progress
-    
+
     with _init_lock:
         # 如果已经完成初始化，直接返回
         if _initialization_complete:
@@ -355,13 +440,14 @@ def init_json_stores(data_dir: str = None):
         config_store = JSONConfigStore(data_dir)
         channel_store = JSONChannelStore(data_dir)
         admin_store = JSONAdminStore(data_dir)
-        
-        
+        target_channel_store = JSONTargetChannelStore(data_dir)
+
         # 原子性设置全局变量
         with _init_lock:
             json_config_store = config_store
             json_channel_store = channel_store
             json_admin_store = admin_store
+            json_target_channel_store = target_channel_store
             _initialization_complete = True
             _initialization_in_progress = False
         
@@ -419,18 +505,27 @@ def get_json_admin_store() -> JSONAdminStore:
             raise RuntimeError("JSON存储层未初始化且自动初始化失败")
     return json_admin_store
 
+def get_json_target_channel_store() -> JSONTargetChannelStore:
+    """获取目标频道存储实例 - 带自动初始化重试"""
+    if json_target_channel_store is None:
+        logger.debug("目标频道存储未初始化，尝试自动初始化...")
+        if not init_json_stores():
+            raise RuntimeError("JSON存储层未初始化且自动初始化失败")
+    return json_target_channel_store
+
 def force_reinit_json_stores(data_dir: str = None):
     """强制重新初始化JSON存储层"""
-    global json_config_store, json_channel_store, json_admin_store
+    global json_config_store, json_channel_store, json_admin_store, json_target_channel_store
     global _initialization_complete, _initialization_in_progress
-    
+
     logger.info("强制重新初始化JSON存储层...")
-    
+
     with _init_lock:
         # 重置所有状态
         json_config_store = None
         json_channel_store = None
         json_admin_store = None
+        json_target_channel_store = None
         _initialization_complete = False
         _initialization_in_progress = False
     
@@ -442,6 +537,7 @@ def is_json_stores_initialized() -> bool:
     with _init_lock:
         return _initialization_complete and all([
             json_config_store is not None,
-            json_channel_store is not None, 
-            json_admin_store is not None
+            json_channel_store is not None,
+            json_admin_store is not None,
+            json_target_channel_store is not None
         ])

@@ -350,3 +350,23 @@ async def resolve_channel(request: ChannelResolveRequest, user: Dict[str, Any] =
             "message": f"解析失败: {str(e)}"
         }
 
+
+class ChannelTargetsRequest(BaseModel):
+    target_channel_ids: list = []  # 目标频道ID列表，空数组=转发到所有目标
+
+@router.put(ROUTES.channels.targets)
+async def update_channel_targets(channel_id: str, request: ChannelTargetsRequest, user: Dict[str, Any] = Depends(require_auth)):
+    """设置源频道的目标频道映射"""
+    try:
+        from app.services.unified_channel_service import unified_channel_service
+        result = await unified_channel_service.update_channel_targets(
+            channel_id, request.target_channel_ids
+        )
+        if result["success"]:
+            return result
+        raise HTTPException(status_code=404, detail=result["message"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

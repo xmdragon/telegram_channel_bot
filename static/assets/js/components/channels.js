@@ -42,7 +42,13 @@ const ChannelApp = {
             sortOrder: 'desc', // 默认降序
 
             // 批量选择
-            selectedChannels: []
+            selectedChannels: [],
+
+            // 目标频道映射
+            allTargetChannels: [],
+            showTargetSelector: false,
+            selectedChannel: null,
+            selectedTargetIds: []
         }
     },
 
@@ -313,6 +319,54 @@ const ChannelApp = {
             return 'sort-none';
         },
 
+        // 加载目标频道列表
+        async loadTargetChannels() {
+            try {
+                const response = await axios.get(API.targetChannels.list);
+                if (response.data.success) {
+                    this.allTargetChannels = response.data.targets || [];
+                }
+            } catch (error) {
+                console.error('加载目标频道列表失败:', error);
+            }
+        },
+
+        // 获取目标频道名称
+        getTargetName(targetId) {
+            const target = this.allTargetChannels.find(t => t.id === targetId);
+            return target ? (target.channel_title || target.channel_name) : `#${targetId}`;
+        },
+
+        // 打开目标频道选择器
+        openTargetSelector(channel) {
+            this.selectedChannel = channel;
+            const config = channel.config || {};
+            this.selectedTargetIds = [...(config.target_channel_ids || [])];
+            this.showTargetSelector = true;
+        },
+
+        // 保存频道目标映射
+        async saveChannelTargets() {
+            if (!this.selectedChannel) return;
+
+            try {
+                const response = await axios.put(
+                    API.channels.updateTargets(this.selectedChannel.id),
+                    { target_channel_ids: this.selectedTargetIds }
+                );
+
+                if (response.data.success) {
+                    MessageManager.success('目标频道映射已更新');
+                    this.showTargetSelector = false;
+                    await this.loadChannels();
+                } else {
+                    MessageManager.error(response.data.message || '更新失败');
+                }
+            } catch (error) {
+                MessageManager.error('更新失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
         // 格式化同步时间
         formatSyncTime(time) {
             if (!time) {
@@ -366,6 +420,7 @@ const ChannelApp = {
 
             // 加载频道列表
             await this.loadChannels();
+            await this.loadTargetChannels();
         } catch (error) {
             MessageManager.error('初始化失败: ' + (error.response?.data?.detail || error.message));
         }

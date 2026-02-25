@@ -124,7 +124,18 @@ const API_ENDPOINTS = {
         search: '/api/channels/search',                           // GET - 搜索频道
 
         // 解析功能
-        resolve: '/api/channels/resolve'                          // POST - 解析单个源频道ID
+        resolve: '/api/channels/resolve',                         // POST - 解析单个源频道ID
+
+        // 目标映射
+        updateTargets: (channel_id) => `/api/channels/${channel_id}/targets`  // PUT - 设置目标映射
+    },
+
+    // 目标频道管理模块 - /api/target-channels
+    targetChannels: {
+        list: '/api/target-channels/',                               // GET - 获取所有目标频道
+        add: '/api/target-channels/',                                // POST - 添加目标频道
+        updateById: (id) => `/api/target-channels/${id}`,            // PUT - 更新目标频道
+        deleteById: (id) => `/api/target-channels/${id}`             // DELETE - 删除目标频道
     },
 
     // 系统状态模块 - /api/system

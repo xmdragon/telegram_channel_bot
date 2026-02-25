@@ -287,24 +287,20 @@ class MessageForwarder:
             # 不清理媒体文件 - 交给scheduler定期清理，保留文件用于重试
             raise  # 重新抛出异常，让队列处理器知道失败
     
-    async def _add_channel_footer(self, content: str) -> str:
-        """
-        添加频道落款到消息内容
-        """
+    async def _add_channel_footer(self, content: str, signature: str = None) -> str:
+        """添加频道落款到消息内容"""
         try:
-            # 使用ConfigManager从数据库获取配置
-            from app.services.config_manager import config_manager
-            footer = await config_manager.get_config("target.signature", "")
-            
-            if footer:
-                # 使用配置的落款，处理换行符
-                footer = "\n\n" + footer.replace("\\n", "\n")
-                # 删除添加频道落款的日志
+            if signature is None:
+                # 兼容旧调用：从全局配置获取
+                from app.services.config_manager import config_manager
+                signature = await config_manager.get_config("target.signature", "")
+
+            if signature:
+                footer = "\n\n" + signature.replace("\\n", "\n")
                 return (content or "") + footer
-            
-            # 如果没有配置落款，直接返回原内容
+
             return content
-            
+
         except Exception as e:
             logger.error(f"添加频道落款失败: {e}")
             return content
@@ -354,24 +350,21 @@ class MessageForwarder:
             # 出错时保守处理，假设超限
             return False, 0
     
-    async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message):
+    async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message, signature: str = None):
         """发送组合消息（媒体组）"""
         try:
             media_files = []
             caption_text = message.filtered_content or message.content
-            
-            # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
-            
+
             # 🔍 检查加上落款后的caption长度
             is_valid, excess = await self._check_caption_length(caption_text, with_footer=True)
             if not is_valid:
                 error_msg = f"组合消息发布失败：内容加落款后超过1024字符限制（超出{excess}字符）"
                 logger.warning(error_msg)
-                # 不直接抛出异常，而是让上层处理
                 raise ValueError(error_msg)
-            
+
             # 添加频道落款
-            caption_text = await self._add_channel_footer(caption_text)
+            caption_text = await self._add_channel_footer(caption_text, signature=signature)
             
             # 准备媒体文件列表（支持本地文件和远程引用混合）
             source_channel = message.get('source_channel')
@@ -425,7 +418,7 @@ class MessageForwarder:
             logger.error(f"发送组合消息失败: {e}")
             raise
     
-    async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
+    async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message, signature: str = None):
         """发送单个媒体消息（支持本地文件和远程引用）"""
         try:
             caption_text = message.filtered_content or message.content
@@ -436,7 +429,7 @@ class MessageForwarder:
                 logger.warning(error_msg)
                 raise ValueError(error_msg)
 
-            caption_with_footer = await self._add_channel_footer(caption_text)
+            caption_with_footer = await self._add_channel_footer(caption_text, signature=signature)
 
             # 处理媒体文件路径
             file_path = message.media_url
@@ -525,8 +518,9 @@ class MessageForwarder:
 
     _listener_cache_warmed = False  # listener entity cache 预热标记
 
-    _listener_target_entity = None  # listener解析的目标频道entity缓存
-    _sender_target_entity = None   # sender解析的目标频道entity缓存
+    _listener_target_entity = None  # listener解析的目标频道entity缓存（兼容旧逻辑）
+    _sender_target_entity = None   # sender解析的目标频道entity缓存（兼容旧逻辑）
+    _target_entities = {}  # key: f"{role}:{channel_id}", value: entity
 
     async def _fetch_source_media(self, source_channel_id, message_id, username=None):
         """从源频道获取媒体引用，返回 (client, media, target_entity) 元组
@@ -582,26 +576,50 @@ class MessageForwarder:
         logger.info(f"{role}获取媒体引用: {source_channel_id}:{message_id}, type={type(messages[0].media).__name__}")
         return messages[0]
 
-    async def _ensure_target_entity(self, role, dsm):
-        """确保指定角色的客户端已解析目标频道entity"""
-        if role == 'listener':
-            if not MessageForwarder._listener_target_entity:
-                client = await dsm.get_listener_client()
-                from app.services.config_manager import config_manager
-                target_link = await config_manager.get_config('target.channel_link', '')
-                if target_link and client:
-                    MessageForwarder._listener_target_entity = await client.get_entity(target_link.lstrip('@'))
-                    logger.info(f"listener已解析目标频道: {MessageForwarder._listener_target_entity.id}")
-            return MessageForwarder._listener_target_entity
+    async def _ensure_target_entity(self, role, dsm, target_channel=None):
+        """确保指定角色的客户端已解析目标频道entity
+
+        Args:
+            role: 'listener' 或 'sender'
+            dsm: dual_session_manager
+            target_channel: 目标频道dict（含channel_name, channel_id）。
+                           为None时使用旧的全局config方式（兼容）
+        """
+        if target_channel:
+            ch_id = target_channel.get('channel_id', '')
+            cache_key = f"{role}:{ch_id}"
+            channel_link = target_channel.get('channel_name', '')
         else:
-            if not MessageForwarder._sender_target_entity:
-                client = await dsm.get_sender_client()
-                from app.services.config_manager import config_manager
-                target_link = await config_manager.get_config('target.channel_link', '')
-                if target_link and client:
-                    MessageForwarder._sender_target_entity = await client.get_entity(target_link.lstrip('@'))
-                    logger.info(f"sender已解析目标频道: {MessageForwarder._sender_target_entity.id}")
-            return MessageForwarder._sender_target_entity
+            cache_key = f"{role}:default"
+            channel_link = None
+
+        cached = MessageForwarder._target_entities.get(cache_key)
+        if cached:
+            return cached
+
+        client = await (dsm.get_listener_client() if role == 'listener' else dsm.get_sender_client())
+        if not client:
+            return None
+
+        if not channel_link:
+            from app.services.config_manager import config_manager
+            channel_link = await config_manager.get_config('target.channel_link', '')
+
+        if not channel_link:
+            return None
+
+        entity = await client.get_entity(channel_link.lstrip('@'))
+        MessageForwarder._target_entities[cache_key] = entity
+
+        # 兼容旧缓存字段
+        if not target_channel:
+            if role == 'listener':
+                MessageForwarder._listener_target_entity = entity
+            else:
+                MessageForwarder._sender_target_entity = entity
+
+        logger.info(f"{role}已解析目标频道: {entity.id} (key={cache_key})")
+        return entity
 
     async def _get_file_timeout(self, file_path: str = None) -> int:
         """
@@ -665,47 +683,221 @@ class MessageForwarder:
             raise
 
     async def _send_combined_message_with_retry(self, client: TelegramClient, target_channel_id: str,
-                                               message, message_type: MessageType) -> any:
+                                               message, message_type: MessageType, signature: str = None) -> any:
         """发送组合消息（带FloodWait重试）"""
         try:
-            return await self._send_combined_message(client, target_channel_id, message)
+            return await self._send_combined_message(client, target_channel_id, message, signature=signature)
         except FloodWaitError as e:
-            # FloodWait处理并重新抛出，让上层处理
             wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
             await rate_limiter.wait_for_flood_wait(wait_seconds)
             raise
 
     async def _send_single_media_message_with_retry(self, client: TelegramClient, target_channel_id: str,
-                                                   message, message_type: MessageType) -> any:
+                                                   message, message_type: MessageType, signature: str = None) -> any:
         """发送单个媒体消息（带FloodWait重试）"""
         try:
-            return await self._send_single_media_message(client, target_channel_id, message)
+            return await self._send_single_media_message(client, target_channel_id, message, signature=signature)
         except FloodWaitError as e:
-            # FloodWait处理并重新抛出，让上层处理
             wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
             await rate_limiter.wait_for_flood_wait(wait_seconds)
             raise
 
-    async def forward_to_target_with_sender_session(self, message):
-        """使用发送Session转发到目标频道（无锁设计），返回包含目标消息ID的完整信息"""
-        from app.telegram.dual_session_manager import dual_session_manager
+    # ------------------------------------------------------------------
+    # 多目标转发
+    # ------------------------------------------------------------------
+
+    async def forward_to_targets(self, client, message, targets):
+        """转发消息到多个目标频道
+
+        Args:
+            client: TelegramClient (sender)
+            message: 消息数据（dict或对象）
+            targets: 目标频道列表
+
+        Returns:
+            list: [{"target_id", "channel_id", "message_id", "message_ids", "link"}, ...]
+        """
+        results = []
+        for target in targets:
+            try:
+                result = await self._forward_to_single_target(client, message, target)
+                if result:
+                    results.append(result)
+            except FloodWaitError:
+                raise
+            except Exception as e:
+                logger.error(f"转发到目标频道 {target.get('channel_name')} 失败: {e}")
+        return results
+
+    async def _forward_to_single_target(self, client, message, target_channel):
+        """转发到单个目标频道"""
+        from app.services.target_channel_service import target_channel_service
+
+        message = StandardMessage(message) if not isinstance(message, StandardMessage) else message
+
+        # 解析目标频道entity
+        target_entity = await self._resolve_target_by_channel(client, target_channel)
+        target_channel_id_str = f"-100{target_entity.id}"
+
+        # 获取落款
+        signature = await target_channel_service.get_signature(target_channel)
+
+        # 限流
+        message_type = self._get_message_type(message)
+        await rate_limiter.wait_if_needed(message_type, target_channel_id_str)
+
+        # 发送消息
+        sent_message = await self._send_message_to_entity(
+            client, target_entity, target_channel_id_str, message, signature, message_type
+        )
+
+        if not sent_message:
+            return None
+
+        return self._build_forward_result(sent_message, target_channel, target_channel_id_str, message_type)
+
+    async def _resolve_target_by_channel(self, client, target_channel):
+        """根据目标频道信息解析entity"""
+        from telethon.tl.types import PeerChannel
+
+        ch_id = target_channel.get('channel_id', '')
+        ch_name = target_channel.get('channel_name', '')
 
         try:
-            # 确保发送Session已连接
-            if await dual_session_manager.ensure_sender_connected():
-                sender_client = await dual_session_manager.get_sender_client()
-                if sender_client:
-                    # 执行转发，返回完整信息（包含link, target_message_id, target_message_ids）
-                    target_info = await self.forward_to_target(sender_client, message)
-                    return target_info
-                else:
-                    raise RuntimeError("发送Session客户端未可用")
-            else:
+            channel_id_int = int(ch_id)
+            if channel_id_int < 0:
+                channel_id_int = int(str(ch_id).replace('-100', '', 1))
+            return await client.get_entity(PeerChannel(channel_id_int))
+        except Exception:
+            return await client.get_entity(ch_name.lstrip('@'))
+
+    async def _send_message_to_entity(self, client, target_entity, target_channel_id, message, signature, message_type):
+        """发送消息到目标entity（提取自forward_to_target的发送逻辑）"""
+        is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False)
+        media_group = getattr(message, 'media_group_display', None) or message.get('media_group_display', None)
+        media_type = getattr(message, 'media_type', None) or message.get('media_type', None)
+        media_url = getattr(message, 'media_url', None) or message.get('media_url', None)
+
+        actual_media_path = media_url
+        if media_url and media_url.startswith('/temp_media/'):
+            from app.core.path_config import PathConfig
+            actual_media_path = str(PathConfig.ROOT_DIR / media_url.lstrip('/'))
+
+        if is_combined and media_group:
+            return await self._send_combined_message_with_retry(
+                client, target_entity, message, message_type, signature=signature
+            )
+        elif self._has_sendable_media(actual_media_path, message):
+            return await self._send_single_media_message_with_retry(
+                client, target_entity, message, message_type, signature=signature
+            )
+        else:
+            return await self._send_text_with_footer(
+                client, target_entity, message, signature, message_type
+            )
+
+    def _has_sendable_media(self, actual_media_path, message):
+        """判断消息是否有可发送的媒体"""
+        media_type = getattr(message, 'media_type', None) or message.get('media_type', None)
+        if not media_type:
+            return False
+        has_local = actual_media_path and os.path.exists(actual_media_path)
+        has_remote = message.get('source_channel') and message.get('message_id')
+        return has_local or has_remote
+
+    async def _send_text_with_footer(self, client, target_entity, message, signature, message_type):
+        """发送带落款的纯文本消息"""
+        filtered_content = getattr(message, 'filtered_content', None) or message.get('filtered_content', None)
+        content = getattr(message, 'content', None) or message.get('content', '')
+        text_content = filtered_content or content
+        content_with_footer = await self._add_channel_footer(text_content, signature=signature)
+        return await self._send_text_message_with_retry(
+            client, target_entity, content_with_footer, [], message_type
+        )
+
+    def _build_forward_result(self, sent_message, target_channel, target_channel_id_str, message_type):
+        """构建单个目标的转发结果"""
+        if isinstance(sent_message, list):
+            msg_ids = [msg.id for msg in sent_message]
+            msg_id = sent_message[0].id
+        else:
+            msg_ids = [sent_message.id]
+            msg_id = sent_message.id
+
+        ch_name = target_channel.get('channel_name', '')
+        link = self._build_target_link(ch_name, target_channel_id_str, msg_id)
+
+        rate_limiter.record_send_attempt(message_type, target_channel_id_str, True)
+
+        return {
+            "target_id": target_channel.get('id'),
+            "channel_id": target_channel_id_str,
+            "message_id": msg_id,
+            "message_ids": msg_ids,
+            "link": link,
+        }
+
+    def _build_target_link(self, channel_name, target_channel_id, msg_id):
+        """构建目标消息链接"""
+        if channel_name:
+            username = channel_name.lstrip('@')
+            return f"https://t.me/{username}/{msg_id}"
+        ch_str = str(target_channel_id)
+        numeric_id = ch_str[4:] if ch_str.startswith('-100') else ch_str.lstrip('-')
+        return f"https://t.me/c/{numeric_id}/{msg_id}"
+
+    # ------------------------------------------------------------------
+    # 入口方法
+    # ------------------------------------------------------------------
+
+    async def forward_to_target_with_sender_session(self, message):
+        """使用发送Session转发到目标频道，返回多目标结果"""
+        from app.telegram.dual_session_manager import dual_session_manager
+        from app.services.target_channel_service import target_channel_service
+
+        try:
+            if not await dual_session_manager.ensure_sender_connected():
                 raise RuntimeError("无法连接发送Session")
+
+            sender_client = await dual_session_manager.get_sender_client()
+            if not sender_client:
+                raise RuntimeError("发送Session客户端未可用")
+
+            # 获取源频道对应的目标列表
+            source_channel = self._extract_source_channel(message)
+            targets = target_channel_service.get_targets_for_source(source_channel or '')
+
+            if not targets:
+                # 兜底：如果没有目标频道配置，使用旧的单目标逻辑
+                return await self.forward_to_target(sender_client, message)
+
+            # 多目标转发
+            results = await self.forward_to_targets(sender_client, message, targets)
+
+            if not results:
+                raise RuntimeError("所有目标频道转发失败")
+
+            return self._build_multi_target_result(results)
 
         except Exception as e:
             logger.error(f"使用发送Session转发失败: {e}")
             raise
+
+    def _extract_source_channel(self, message):
+        """从消息中提取源频道ID"""
+        if isinstance(message, dict):
+            return message.get('source_channel')
+        return getattr(message, 'source_channel', None)
+
+    def _build_multi_target_result(self, results):
+        """构建多目标转发的兼容返回格式"""
+        first = results[0]
+        return {
+            'link': first.get('link'),
+            'target_message_id': first.get('message_id'),
+            'target_message_ids': first.get('message_ids', []),
+            'target_results': results,
+        }
 
 # 全局转发器实例
 message_forwarder = MessageForwarder()

@@ -85,6 +85,11 @@ const ConfigApp = {
                 // 其他
                 'target.signature': ''
             },
+
+            // 目标频道管理
+            targetChannels: [],
+            newTargetChannel: '',
+            addingTarget: false,
             
             // 配置类型映射 - 用于自动类型转换
             configTypes: {
@@ -146,7 +151,8 @@ const ConfigApp = {
         
         // 加载配置数据
         await this.loadConfigData();
-        
+        await this.loadTargetChannels();
+
         // 强制更新视图以确保数据显示
         this.$nextTick(() => {
             this.$forceUpdate();
@@ -326,19 +332,12 @@ const ConfigApp = {
             try {
                 // 特殊处理：转发配置需要使用专门的API来解析频道ID
                 if (this.activeTab === 'forwarding') {
-                    // 先调用转发配置API获取解析后的频道ID
                     const forwardResponse = await axios.post(API.admin.configForwarding, {
-                        target_channel: this.configs['target.channel_link'],
-                        target_channel_id: this.configs['target.channel_id'],
                         auto_forward_enabled: this.configs['target.auto_forward_enabled'],
                         auto_forward_delay: Number(this.configs['target.auto_forward_delay']) || 1800,
                         auto_reject_ads: this.configs['target.auto_reject_ads'],
                         require_approval: this.configs['target.require_approval']
                     });
-
-                    if (forwardResponse.data.success && forwardResponse.data.target_channel_id) {
-                        this.configs['target.channel_id'] = forwardResponse.data.target_channel_id;
-                    }
                 }
 
                 // 评论区关键词：换行文本转为JSON数组
@@ -369,6 +368,99 @@ const ConfigApp = {
             }
         },
         
+        // ========== 目标频道管理 ==========
+
+        async loadTargetChannels() {
+            try {
+                const response = await axios.get(API.targetChannels.list);
+                if (response.data.success) {
+                    this.targetChannels = response.data.targets || [];
+                }
+            } catch (error) {
+                console.error('加载目标频道失败:', error);
+            }
+        },
+
+        async addTargetChannel() {
+            if (!this.newTargetChannel.trim()) {
+                MessageManager.warning('请输入频道用户名');
+                return;
+            }
+
+            this.addingTarget = true;
+            try {
+                let channelName = this.newTargetChannel.trim();
+                if (!channelName.startsWith('@')) {
+                    channelName = '@' + channelName;
+                }
+
+                const response = await axios.post(API.targetChannels.add, {
+                    channel_name: channelName
+                });
+
+                if (response.data.success) {
+                    MessageManager.success('目标频道添加成功');
+                    this.newTargetChannel = '';
+                    await this.loadTargetChannels();
+                } else {
+                    MessageManager.error(response.data.message || '添加失败');
+                }
+            } catch (error) {
+                MessageManager.error('添加目标频道失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                this.addingTarget = false;
+            }
+        },
+
+        async deleteTargetChannel(target) {
+            try {
+                const confirmed = await SimpleUI.confirm(
+                    `确定要删除目标频道 "${target.channel_title || target.channel_name}" 吗？`,
+                    '删除确认'
+                );
+                if (!confirmed) return;
+
+                const response = await axios.delete(API.targetChannels.deleteById(target.id));
+                if (response.data.success) {
+                    MessageManager.success('目标频道已删除');
+                    await this.loadTargetChannels();
+                } else {
+                    MessageManager.error('删除失败');
+                }
+            } catch (error) {
+                if (error !== 'cancel') {
+                    MessageManager.error('删除失败: ' + (error.response?.data?.detail || error.message));
+                }
+            }
+        },
+
+        async toggleTargetChannel(target) {
+            try {
+                const response = await axios.put(API.targetChannels.updateById(target.id), {
+                    enabled: !target.enabled
+                });
+                if (response.data.success) {
+                    target.enabled = !target.enabled;
+                }
+            } catch (error) {
+                MessageManager.error('更新失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
+        async updateTargetSignature(target, newSignature) {
+            if (newSignature === target.signature) return;
+            try {
+                const response = await axios.put(API.targetChannels.updateById(target.id), {
+                    signature: newSignature
+                });
+                if (response.data.success) {
+                    target.signature = newSignature;
+                }
+            } catch (error) {
+                MessageManager.error('更新落款失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
         showReviewGroupHelp() {
             // 如果已经有提示在显示，不再弹出新的
             if (this.helpMessageShowing) {

@@ -36,31 +36,75 @@
                 <div class="tab-content" v-show="activeTab === 'forwarding'">
                     <div class="config-section">
                         <h3>自动转发配置</h3>
-                        <form class="native-form">
-                            <div class="form-group">
-                                <label class="form-label">目标频道</label>
-                                <div class="input-line">
-                                    <input 
-                                        class="form-input"
-                                        type="text"
-                                        v-model="configs['target.channel_link']" 
-                                        placeholder="输入用户名（如：@bigeventsinsea 或 bigeventsinsea）">
-                                    <div class="form-hint">
-                                        💡 输入频道用户名，系统会自动解析为数字ID用于消息发送
+
+                        <!-- 目标频道管理区域 -->
+                        <div class="target-channels-section">
+                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0;">目标频道列表</h4>
+                                <span class="channel-count" style="color: #666; font-size: 13px;">
+                                    共 {{ targetChannels.length }} 个目标频道
+                                </span>
+                            </div>
+
+                            <!-- 添加目标频道 -->
+                            <div class="add-target-form" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                                <input
+                                    class="form-input"
+                                    type="text"
+                                    v-model="newTargetChannel"
+                                    placeholder="输入频道用户名（如 @channelname）"
+                                    @keyup.enter="addTargetChannel"
+                                    style="flex: 1;">
+                                <button type="button" class="btn btn-primary" @click="addTargetChannel" :disabled="addingTarget">
+                                    {{ addingTarget ? '添加中...' : '+ 添加' }}
+                                </button>
+                            </div>
+
+                            <!-- 目标频道列表 -->
+                            <div v-if="targetChannels.length > 0" class="target-channels-list">
+                                <div v-for="target in targetChannels" :key="target.id"
+                                     class="target-channel-item"
+                                     style="display: flex; align-items: center; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 8px; background: #fafafa;">
+
+                                    <!-- 启用状态开关 -->
+                                    <label class="switch" style="margin-right: 12px;">
+                                        <input type="checkbox" :checked="target.enabled" @change="toggleTargetChannel(target)">
+                                        <span class="slider"></span>
+                                    </label>
+
+                                    <!-- 频道信息 -->
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-weight: 500; font-size: 14px;">
+                                            {{ target.channel_title || target.channel_name }}
+                                        </div>
+                                        <div style="font-size: 12px; color: #888;">
+                                            {{ target.channel_name }} · {{ target.channel_id }}
+                                        </div>
                                     </div>
+
+                                    <!-- 落款编辑 -->
+                                    <div style="flex: 0 0 200px; margin: 0 12px;">
+                                        <input
+                                            class="form-input"
+                                            type="text"
+                                            :value="target.signature"
+                                            @blur="updateTargetSignature(target, $event.target.value)"
+                                            placeholder="独立落款（空=用全局）"
+                                            style="font-size: 12px; padding: 4px 8px;">
+                                    </div>
+
+                                    <!-- 删除按钮 -->
+                                    <button type="button" class="btn btn-danger btn-sm" @click="deleteTargetChannel(target)">
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">目标频道ID</label>
-                                <div class="input-line">
-                                    <input
-                                        class="form-input"
-                                        type="text"
-                                        v-model="configs['target.channel_id']"
-                                        placeholder="自动解析后显示ID，也可手动输入或清空">
-                                </div>
+                            <div v-else style="text-align: center; padding: 20px; color: #999; border: 1px dashed #ddd; border-radius: 6px;">
+                                暂无目标频道，请添加
                             </div>
+                        </div>
+
+                        <form class="native-form" style="margin-top: 20px;">
                             <div class="form-group">
                                 <label class="form-label">启用自动转发</label>
                                 <div class="input-line">

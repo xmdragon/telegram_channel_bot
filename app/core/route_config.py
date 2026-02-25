@@ -61,6 +61,16 @@ class RouteConfig:
         # 解析功能
         resolve = "/resolve"
 
+        # 目标映射
+        targets = "/{channel_id}/targets"
+
+    class TargetChannels:
+        """目标频道管理路由"""
+        list = "/"
+        add = "/"
+        update = "/{id}"
+        delete = "/{id}"
+
     class Training:
         """训练数据管理路由"""
         # 分隔符模式
@@ -199,6 +209,7 @@ class RouteConfig:
         # 按照统一顺序初始化
         self.messages = self.Messages()
         self.channels = self.Channels()
+        self.target_channels = self.TargetChannels()
         self.training = self.Training()
         self.admin_auth = self.AdminAuth()
         self.admin = self.Admin()

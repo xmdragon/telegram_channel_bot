@@ -212,6 +212,7 @@
                                         <i v-else>▲▼</i>
                                     </span>
                                 </th>
+                                <th>目标频道</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -252,13 +253,26 @@
                                     </span>
                                 </td>
                                 <td>
+                                    <span class="target-tags" @click="openTargetSelector(channel)"
+                                          style="cursor: pointer; display: inline-flex; gap: 4px; flex-wrap: wrap;">
+                                        <span v-if="!channel.config || !channel.config.target_channel_ids || channel.config.target_channel_ids.length === 0"
+                                              class="tag" style="background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                                            → 全部
+                                        </span>
+                                        <span v-else v-for="tid in channel.config.target_channel_ids" :key="tid"
+                                              class="tag" style="background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                                            → {{ getTargetName(tid) }}
+                                        </span>
+                                    </span>
+                                </td>
+                                <td>
                                     <button class="btn btn-danger btn-sm" @click="removeChannel(channel.id)">
                                         🗑️ 删除
                                     </button>
                                 </td>
                             </tr>
                             <tr v-if="sortedChannels.length === 0">
-                                <td colspan="6" class="empty-row">暂无频道数据</td>
+                                <td colspan="7" class="empty-row">暂无频道数据</td>
                             </tr>
                         </tbody>
                     </table>
@@ -268,6 +282,37 @@
                 <div v-if="channels.length === 0" class="empty-state">
                     <p>暂无监听频道</p>
                     <p>请使用上方表单添加频道</p>
+                </div>
+            </div>
+        </div>
+        <!-- 目标频道选择器 -->
+        <div v-if="showTargetSelector" class="modal-overlay" @click.self="showTargetSelector = false"
+             style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: white; border-radius: 8px; padding: 20px; width: 400px; max-width: 90vw;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px;">
+                    选择目标频道 - {{ selectedChannel?.channel_title || selectedChannel?.channel_name }}
+                </h3>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; padding: 8px; border: 1px solid #eee; border-radius: 4px; margin-bottom: 4px; cursor: pointer;"
+                           :style="{ background: selectedTargetIds.length === 0 ? '#e8f5e9' : 'white' }">
+                        <input type="radio" :checked="selectedTargetIds.length === 0" @change="selectedTargetIds = []" name="target-mode">
+                        转发到全部目标频道
+                    </label>
+                    <div v-for="target in allTargetChannels" :key="target.id"
+                         style="padding: 8px; border: 1px solid #eee; border-radius: 4px; margin-bottom: 4px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" :value="target.id" v-model="selectedTargetIds" style="margin-right: 8px;">
+                            <span>{{ target.channel_title || target.channel_name }}</span>
+                            <span style="margin-left: auto; font-size: 12px; color: #999;">{{ target.channel_name }}</span>
+                        </label>
+                    </div>
+                    <div v-if="allTargetChannels.length === 0" style="text-align: center; padding: 16px; color: #999;">
+                        暂无目标频道，请先在配置页面添加
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button class="btn btn-secondary" @click="showTargetSelector = false">取消</button>
+                    <button class="btn btn-primary" @click="saveChannelTargets">保存</button>
                 </div>
             </div>
         </div>
