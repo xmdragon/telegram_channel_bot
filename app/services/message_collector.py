@@ -320,6 +320,7 @@ class TelegramMessageCollector:
             # 优先用listener，如果listener无法获取某些频道消息则回退到sender
             self.telethon_client = await self.session_manager.get_listener_client()
             self._fallback_client = None  # sender作为备用
+            self._channel_client = {}  # {channel_id: (client, entity)} 记录每个频道应用的客户端
             
             # 3. 确保客户端连接
             if self.telethon_client and not self.telethon_client.is_connected():
@@ -522,6 +523,8 @@ class TelegramMessageCollector:
                             messages = [msg for msg in messages if msg and msg.id > checkpoint]
                         if messages:
                             logger.info(f"频道 {channel_id} listener获取为空，sender获取到{len(messages)}条消息")
+                            # 记录该频道需要用sender采集
+                            self._channel_client[channel_id] = (fallback, fb_entity)
                     except Exception as e:
                         logger.warning(f"频道 {channel_id} sender备用获取失败: {e}")
 
@@ -651,12 +654,12 @@ class TelegramMessageCollector:
         try:
             if not message_groups:
                 return None
-            
-            # 1. 直接获取消息
+
+            # 1. 获取消息
             messages = await self.telethon_client.get_messages(entity, ids=message_groups)
             if not messages:
                 return None
-            
+
             # 2. 处理消息
             channel_id = str(entity.id) if hasattr(entity, 'id') else "unknown"
             # Telegram超级群组/频道ID需要加上-100前缀
@@ -704,13 +707,25 @@ class TelegramMessageCollector:
         # 1. 获取要采集的ID组列表
         message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
         if not message_groups:
-            logger.info(f"频道 {channel_name}/{channel_id} checkpoint={checkpoint} 无新消息组")
             return
-        
-        # 统计总消息数（不记录日志，将在完成时汇总）
+
+        # 如果该频道需要用sender，临时切换client和entity
+        original_client = None
+        if channel_id in self._channel_client:
+            original_client = self.telethon_client
+            self.telethon_client, entity = self._channel_client[channel_id]
+
+        try:
+            await self._process_channel_message_groups(entity, message_groups, channel, channel_id, channel_name)
+        finally:
+            if original_client:
+                self.telethon_client = original_client
+
+    async def _process_channel_message_groups(self, entity, message_groups, channel, channel_id, channel_name):
+        """处理频道的消息组列表"""
+        # 统计总消息数
         total_message_count = sum(len(group) for group in message_groups)
-        
-        # 2. 循环处理每个消息组
+
         processed_count = 0
         
         for message_group in message_groups:
@@ -776,6 +791,7 @@ class TelegramMessageCollector:
                     'source_channel_link_prefix': f"https://t.me/{channel.get('channel_name', '').lstrip('@')}",
                     'source_channel_title': channel.get('channel_title'),
                     'source_channel_username': channel.get('channel_name'),
+                    'comment_message_id': collected_message.comment_message_id,
                     'details': collected_message.details,
                     'entities': collected_message.entities
                 }
