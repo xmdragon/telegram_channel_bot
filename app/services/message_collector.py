@@ -494,8 +494,10 @@ class TelegramMessageCollector:
                             logger.warning(f"向前扩展组消息失败: {e}")
 
             if not messages:
+                logger.info(f"频道 {channel_id} checkpoint={checkpoint} get_messages返回空")
                 return []
 
+            logger.info(f"频道 {channel_id} checkpoint={checkpoint} 获取到{len(messages)}条原始消息")
             # 🔧 修复：改进分组逻辑，确保组消息完整性
             message_groups = {}  # {grouped_id: [msg_ids]}
             single_messages = []  # 单独消息
@@ -673,7 +675,7 @@ class TelegramMessageCollector:
         # 1. 获取要采集的ID组列表
         message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
         if not message_groups:
-            # 无新消息时不记录日志
+            logger.info(f"频道 {channel_name}/{channel_id} checkpoint={checkpoint} 无新消息组")
             return
         
         # 统计总消息数（不记录日志，将在完成时汇总）
