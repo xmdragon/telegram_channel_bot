@@ -93,6 +93,19 @@
                                             style="font-size: 12px; padding: 4px 8px;">
                                     </div>
 
+                                    <!-- 同步按钮 -->
+                                    <button type="button" class="btn btn-sm btn-outline"
+                                            :disabled="target._syncing"
+                                            @click="syncTargetChannel(target)"
+                                            style="margin-right: 4px; font-size: 12px;">
+                                        <template v-if="target._syncing">
+                                            {{ target._syncDone }}/{{ target._syncTotal }}
+                                        </template>
+                                        <template v-else>
+                                            同步
+                                        </template>
+                                    </button>
+
                                     <!-- 删除按钮 -->
                                     <button type="button" class="btn btn-danger btn-sm" @click="deleteTargetChannel(target)">
                                         🗑️

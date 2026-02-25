@@ -1,5 +1,5 @@
 """目标频道管理API"""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 import logging
@@ -73,6 +73,36 @@ async def delete_target_channel(id: int, user: Dict[str, Any] = Depends(require_
         if result["success"]:
             return result
         raise HTTPException(status_code=404, detail=result["message"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(ROUTES.target_channels.sync)
+async def sync_target_channel(id: int, user: Dict[str, Any] = Depends(require_auth)):
+    """触发目标频道同步"""
+    try:
+        from app.services.channel_sync_service import channel_sync_service
+        result = await channel_sync_service.start_sync(id)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(ROUTES.target_channels.sync_status)
+async def get_sync_status(id: int, task_id: str = Query(...), user: Dict[str, Any] = Depends(require_auth)):
+    """查询同步进度"""
+    try:
+        from app.services.channel_sync_service import channel_sync_service
+        status = channel_sync_service.get_status(task_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        return {"success": True, **status}
     except HTTPException:
         raise
     except Exception as e:

@@ -70,6 +70,8 @@ class RouteConfig:
         add = "/"
         update = "/{id}"
         delete = "/{id}"
+        sync = "/{id}/sync"
+        sync_status = "/{id}/sync-status"
 
     class Training:
         """训练数据管理路由"""

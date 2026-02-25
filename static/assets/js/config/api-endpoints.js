@@ -135,7 +135,9 @@ const API_ENDPOINTS = {
         list: '/api/target-channels/',                               // GET - 获取所有目标频道
         add: '/api/target-channels/',                                // POST - 添加目标频道
         updateById: (id) => `/api/target-channels/${id}`,            // PUT - 更新目标频道
-        deleteById: (id) => `/api/target-channels/${id}`             // DELETE - 删除目标频道
+        deleteById: (id) => `/api/target-channels/${id}`,            // DELETE - 删除目标频道
+        sync: (id) => `/api/target-channels/${id}/sync`,             // POST - 触发同步
+        syncStatus: (id) => `/api/target-channels/${id}/sync-status` // GET - 查询同步进度
     },
 
     // 系统状态模块 - /api/system

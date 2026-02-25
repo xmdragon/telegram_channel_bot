@@ -461,6 +461,54 @@ const ConfigApp = {
             }
         },
 
+        async syncTargetChannel(target) {
+            try {
+                const response = await axios.post(API.targetChannels.sync(target.id));
+                if (!response.data.success) {
+                    MessageManager.error(response.data.detail || '同步启动失败');
+                    return;
+                }
+                const { task_id, total } = response.data;
+                if (total === 0) {
+                    MessageManager.success('所有消息已同步，无需补发');
+                    return;
+                }
+                target._syncing = true;
+                target._syncTotal = total;
+                target._syncDone = 0;
+                MessageManager.info(`开始同步 ${total} 条消息`);
+                this.pollSyncProgress(target, task_id);
+            } catch (error) {
+                MessageManager.error('同步失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
+        pollSyncProgress(target, taskId) {
+            const url = API.targetChannels.syncStatus(target.id);
+            const poll = async () => {
+                try {
+                    const resp = await axios.get(url, { params: { task_id: taskId } });
+                    target._syncDone = resp.data.done || 0;
+                    target._syncTotal = resp.data.total || target._syncTotal;
+                    if (resp.data.status === 'completed' || resp.data.status === 'failed') {
+                        target._syncing = false;
+                        const failed = resp.data.failed || 0;
+                        if (resp.data.status === 'completed' && failed === 0) {
+                            MessageManager.success(`同步完成: ${target._syncDone} 条成功`);
+                        } else {
+                            MessageManager.warning(`同步结束: ${target._syncDone} 条成功, ${failed} 条失败`);
+                        }
+                        return;
+                    }
+                    setTimeout(poll, 2000);
+                } catch {
+                    target._syncing = false;
+                    MessageManager.error('查询同步进度失败');
+                }
+            };
+            setTimeout(poll, 2000);
+        },
+
         showReviewGroupHelp() {
             // 如果已经有提示在显示，不再弹出新的
             if (this.helpMessageShowing) {
