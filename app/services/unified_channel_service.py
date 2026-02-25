@@ -140,6 +140,8 @@ class UnifiedChannelService:
             success = channel_store.add_channel(channel_data)
             if success:
                 logger.info(f"成功添加频道: {channel_name} -> {resolved_id} ({channel_title})")
+                # 自动让采集和发送账号加入频道
+                await self._auto_join_channel(channel_name, resolved_id)
                 return {"success": True, "message": "频道添加成功", "data": channel_data}
             else:
                 return {"success": False, "message": "保存频道数据失败", "data": None}
@@ -148,6 +150,32 @@ class UnifiedChannelService:
             logger.error(f"添加频道失败: {e}")
             return {"success": False, "message": f"添加频道失败: {str(e)}", "data": None}
     
+    async def _auto_join_channel(self, channel_name: str, channel_id: str):
+        """添加频道后自动让采集和发送账号加入"""
+        from app.telegram.dual_session_manager import dual_session_manager
+
+        clients = {
+            "listener": await dual_session_manager.get_listener_client(),
+            "sender": await dual_session_manager.get_sender_client(),
+        }
+
+        for role, client in clients.items():
+            if not client:
+                continue
+            try:
+                # 用username或数字ID获取entity
+                peer = channel_name if channel_name and not channel_name.lstrip('-').isdigit() else int(channel_id)
+                entity = await client.get_entity(peer)
+                # 检查是否已加入（left=False表示已在频道中）
+                if hasattr(entity, 'left') and not entity.left:
+                    logger.debug(f"{role}已在频道中: {channel_name}")
+                    continue
+                from telethon.tl.functions.channels import JoinChannelRequest
+                await client(JoinChannelRequest(entity))
+                logger.info(f"{role}已自动加入频道: {channel_name} ({channel_id})")
+            except Exception as e:
+                logger.warning(f"{role}自动加入频道失败 {channel_name}: {e}")
+
     async def _resolve_channel_title(self, channel_name: str, channel_id: str) -> str:
         """
         解析频道的真实标题
