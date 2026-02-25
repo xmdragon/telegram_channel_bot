@@ -132,6 +132,10 @@ class AutoForwarder:
                                 # 这些错误不需要重试，标记为已处理
                                 await self.mark_message_processed(message_id, error_type)
                                 logger.info(f"消息被拒绝: {message_id} - {error_type}")
+                            elif '原消息不存在' in error_msg or '原消息无媒体' in error_msg:
+                                # 源消息已删除或不可访问，直接删除本地消息
+                                await self.delete_message(message_id)
+                                logger.warning(f"源消息不存在，已删除本地消息: {message_id}")
                             elif self.is_system_error(error_msg):
                                 # 系统错误：不写入消息，只记录日志
                                 logger.error(f"自动转发遇到系统错误: {message_id} - {error_msg}")
@@ -177,6 +181,10 @@ class AutoForwarder:
                             logger.warning(f"检测到FloodWait错误: {message_id} - {e}")
                             # 增加重试计数但不标记为失败
                             await self.increment_retry_count(message_id)
+                        elif '原消息不存在' in error_msg or '原消息无媒体' in error_msg:
+                            # 源消息已删除或不可访问，直接删除本地消息
+                            await self.delete_message(message_id)
+                            logger.warning(f"源消息不存在，已删除本地消息: {message_id}")
                         elif self.is_system_error(error_msg):
                             # 系统级错误：只记录日志和重试计数，不写入消息
                             logger.error(f"自动转发遇到系统错误: {message_id} - {e}")
@@ -395,6 +403,14 @@ class AutoForwarder:
             logger.debug(f"已清除消息重试标记: {message_id}")
         except Exception as e:
             logger.error(f"清除重试标记时出错: {e}")
+
+    async def delete_message(self, message_id: str):
+        """删除本地消息（源消息不存在时调用）"""
+        try:
+            redis_manager.delete_message(message_id)
+            logger.info(f"已删除本地消息: {message_id}")
+        except Exception as e:
+            logger.error(f"删除消息失败: {message_id} - {e}")
 
     async def mark_message_processed(self, message_id: str, reason: str):
         """
