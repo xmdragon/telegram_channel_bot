@@ -469,7 +469,7 @@ class TelegramMessageCollector:
         else:
             logger.info(f"本轮采集耗时 {runtime:.1f}s，立即开始下轮")
     
-    async def _get_message_ids_to_collect(self, entity, channel_id: str, checkpoint: int) -> List[List[int]]:
+    async def _get_message_ids_to_collect(self, entity, channel_id: str, checkpoint: int, channel: dict = None) -> List[List[int]]:
         """根据channel和checkpoint返回要采集的消息ID组列表 - 修复组消息完整性问题"""
         try:
             if checkpoint == 0:
@@ -513,9 +513,15 @@ class TelegramMessageCollector:
             if not messages:
                 fallback = await self._get_fallback_client()
                 if fallback:
-                    channel_name = entity.username if hasattr(entity, 'username') and entity.username else str(channel_id)
+                    # 优先用channel配置中的username，比entity.username更可靠
+                    username = None
+                    if channel:
+                        username = (channel.get('channel_name') or '').lstrip('@')
+                    if not username and hasattr(entity, 'username') and entity.username:
+                        username = entity.username
+                    peer = username if username else int(channel_id)
                     try:
-                        fb_entity = await fallback.get_entity(channel_name)
+                        fb_entity = await fallback.get_entity(peer)
                         if checkpoint == 0:
                             messages = await fallback.get_messages(fb_entity, limit=actual_limit)
                         else:
@@ -705,7 +711,7 @@ class TelegramMessageCollector:
         await self._update_channel_info(channel, entity)
 
         # 1. 获取要采集的ID组列表
-        message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
+        message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint, channel)
         if not message_groups:
             return
 
