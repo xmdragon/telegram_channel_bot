@@ -18,6 +18,9 @@ class TargetChannelUpdateRequest(BaseModel):
     signature: Optional[str] = None
     enabled: Optional[bool] = None
 
+class SyncRequest(BaseModel):
+    source_target_id: int
+
 @router.get(ROUTES.target_channels.list)
 async def get_target_channels(user: Dict[str, Any] = Depends(require_auth)):
     """获取所有目标频道"""
@@ -80,11 +83,11 @@ async def delete_target_channel(id: int, user: Dict[str, Any] = Depends(require_
 
 
 @router.post(ROUTES.target_channels.sync)
-async def sync_target_channel(id: int, user: Dict[str, Any] = Depends(require_auth)):
-    """触发目标频道同步"""
+async def sync_target_channel(id: int, request: SyncRequest, user: Dict[str, Any] = Depends(require_auth)):
+    """触发目标频道同步，从指定源频道同步消息"""
     try:
         from app.services.channel_sync_service import channel_sync_service
-        result = await channel_sync_service.start_sync(id)
+        result = await channel_sync_service.start_sync(id, request.source_target_id)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
         return {"success": True, **result}

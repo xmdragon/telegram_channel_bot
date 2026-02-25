@@ -462,8 +462,33 @@ const ConfigApp = {
         },
 
         async syncTargetChannel(target) {
+            // 筛选出其他频道作为源选项
+            const sources = this.targetChannels.filter(t => t.id !== target.id);
+            if (sources.length === 0) {
+                MessageManager.warning('没有其他目标频道可作为同步源');
+                return;
+            }
+
+            // 只有一个源频道时直接用，多个时让用户选择
+            let sourceId;
+            if (sources.length === 1) {
+                sourceId = sources[0].id;
+            } else {
+                const options = sources.map(s => s.channel_title || s.channel_name).join('\n');
+                const choice = prompt(`选择同步源频道（输入序号）：\n${sources.map((s, i) => `${i + 1}. ${s.channel_title || s.channel_name}`).join('\n')}`);
+                if (!choice) return;
+                const idx = parseInt(choice) - 1;
+                if (idx < 0 || idx >= sources.length) {
+                    MessageManager.error('无效的选择');
+                    return;
+                }
+                sourceId = sources[idx].id;
+            }
+
             try {
-                const response = await axios.post(API.targetChannels.sync(target.id));
+                const response = await axios.post(API.targetChannels.sync(target.id), {
+                    source_target_id: sourceId
+                });
                 if (!response.data.success) {
                     MessageManager.error(response.data.detail || '同步启动失败');
                     return;
